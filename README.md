@@ -8,3 +8,5 @@ v1.0.0 is the basic player: open a video or music file from the phone and play i
 
 ## Build
 Android, Kotlin, Jetpack Compose. Player engine: AndroidX Media3 ExoPlayer 1.11.1. `./gradlew testDebugUnitTest assembleRelease`.
+
+Signed releases carry the Netra certificate; the update check only trusts this repository.
