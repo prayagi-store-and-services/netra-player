@@ -154,6 +154,7 @@ private fun PlaySection() {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val player = remember { ExoPlayer.Builder(context).build() }
+    val tv = remember { isTelevision(context) }
     var title by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -181,14 +182,16 @@ private fun PlaySection() {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Play a video or song", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text("Pick a video or music file from this phone. Nothing is uploaded; it plays on this device.", style = MaterialTheme.typography.bodySmall)
-            Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { picker.launch(arrayOf("video/*", "audio/*")) }) {
+            Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
+                try { picker.launch(arrayOf("video/*", "audio/*")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
+            }) {
                 Text("Open video or music file")
             }
             Text(title?.let { "Now playing: $it" } ?: "No file chosen yet", style = MaterialTheme.typography.bodyMedium)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             AndroidView(
-                modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(12.dp)),
-                factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } }
+                modifier = Modifier.fillMaxWidth().height(playerHeightDp(tv).dp).clip(RoundedCornerShape(12.dp)),
+                factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true; isFocusable = true; isFocusableInTouchMode = true } }
             )
         }
     }

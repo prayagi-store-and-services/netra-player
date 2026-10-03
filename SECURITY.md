@@ -10,6 +10,9 @@ Netra Player is only a video and music player. It plays files that you choose on
 - INTERNET: update check and the usage count.
 - REQUEST_INSTALL_PACKAGES: installing an update you tapped.
 
+## Android TV (v1.0.1)
+- The app also installs on Android TV (leanback launcher, no touchscreen needed). This adds no permission. It is built and unit-tested in CI but not yet tried on a real TV by us.
+
 ## Update safety
 - The updater only accepts releases from the prayagi-store-and-services organization, a valid vX.Y.Z tag and a 64-character sha256, and checks the downloaded size.
 - Installer files are deleted after the update is installed or cancelled.
