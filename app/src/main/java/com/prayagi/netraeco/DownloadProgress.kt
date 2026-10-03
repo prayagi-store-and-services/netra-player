@@ -1,4 +1,4 @@
-package com.prayagi.netraeco
+package com.prayagi.netraplayer
 
 /** Measures download speed over a rolling window so the time left adjusts as the connection changes. */
 class SpeedTracker(private val windowMs: Long = 5000L) {

@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Netra Eco"
+rootProject.name = "Netra Player"
 
 include(":app")

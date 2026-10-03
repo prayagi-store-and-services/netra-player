@@ -1,43 +1,21 @@
-# Security notes - Netra Eco
+# Security notes - Netra Player
 
-Netra Eco is a small catalog app for the Netra apps by Prayagi Team. It shows each Netra app, whether it is installed, the newest version, and lets you download and install or update it directly.
+Netra Player plays video and music files that you choose on your phone. Files are opened through the Android file picker and are never uploaded.
 
-## What the app talks to
-
-- `https://prayagi-store-and-services.github.io/netra-eco/projects.json` - the list of Netra apps (public file on the Netra Eco website).
-- `https://github.com/prayagi-store-and-services/<repo>/releases/latest/download/latest.json` - the newest version of each app (Battery Sentinel uses the `latest.json` on its website). Public files, no login.
-- `https://github.com/prayagi-store-and-services/<repo>/releases/download/<tag>/app-release.apk` - the APK itself.
-
-Nothing else. No analytics, no accounts, no keys or API tokens in the app, no personal data sent. Requests carry only the app name `netra-eco-app` as the user agent.
-
-## What is protected
-
-- Only repositories of the `prayagi-store-and-services` GitHub organization are accepted from the catalog. Any other owner is ignored.
-- The APK address is built from the repository and the release tag in `latest.json`; it is never taken from the file as a free URL. The tag must look like `v1.2.3`.
-- The downloaded file is deleted and not installed if its size or SHA-256 does not match `latest.json`.
-- The system installer asks the user to confirm. Android installs an update only if it is signed with the same key as the app already installed, so a fake APK cannot replace a Netra app. (A first install of an app is checked by Android's own installer prompt.)
-- The app asks for the permission to install apps only when you tap Download, and sends you to the Android settings screen for it.
-- Installed apps are found through the Android package list, limited to the Netra package names declared in the manifest (`<queries>`). The app cannot see your other apps.
-- Missing data shows as "Unavailable". No made-up ratings, download counts or version numbers.
-
-## Installer file cleanup
-- Downloaded APKs live only in the app cache folder (`cache/updates/`). They are deleted when you come back to the app after the system installer closes (installed or cancelled), and never while a download is running. A new download also removes older files first.
-
-## Manual update check
-- The header has a "Check for update" button for Netra Eco itself. It reads Eco's own latest.json from this repo's latest release, says whether you are on the latest version, and offers Update only when a newer one exists. The download is checked for size and SHA-256 before the Android installer opens, and the user confirms the install.
+## What the app connects to
+- `https://github.com/prayagi-store-and-services/netra-player/releases/latest/download/latest.json` and the release APK, only for the "Check for update" button and the in-app update. The update is downloaded and then installed by you with the normal Android installer.
+- Firestore REST (public project netra-ai-jan): once a day it adds +1 to the counter `netra_active/netra-player_<yyyyMMdd>`. No user ID, no location, no files, no device data. It is on by default and can be switched off in About.
 
 ## Permissions
+- INTERNET: update check and the usage count.
+- REQUEST_INSTALL_PACKAGES: installing an update you tapped.
+- ACCESS_COARSE_LOCATION / ACCESS_FINE_LOCATION (optional): only to show latitude and longitude in the header on your screen. The location is never sent anywhere. Without it the header says Unavailable.
 
-- `INTERNET` - to read the lists and download APKs.
-- `REQUEST_INSTALL_PACKAGES` - to hand a downloaded Netra APK to the system installer.
+## Update safety
+- The updater only accepts releases from the prayagi-store-and-services organization, a valid vX.Y.Z tag and a 64-character sha256, and checks the downloaded size.
+- Installer files are deleted after the update is installed or cancelled.
 
-## Limits
+## Dependencies
+- AndroidX Media3 (exoplayer, ui) 1.11.1.
 
-- A new Netra app appears in the list as soon as it is added to `projects.json`. To also detect whether it is installed, its package name must be added to the manifest `<queries>` in a new version of this app.
-- Minimum Android version is 8.0 (API 26).
-
-- Download progress (v1.0.3): while an APK downloads, the app shows the percentage left and an estimated time left, calculated on the phone from the bytes received. Nothing extra is sent anywhere and no new library or permission is used.
-
-- Roadmap (v1.0.4): the app downloads one public file, roadmap.json, from the Netra Eco website to show upcoming features and a countdown to the next estimated release. It sends nothing about you. No new library or permission.
-
-- Fresher update check (v1.0.5): the app now asks the GitHub release API (public, no sign-in) for the newest release, with a no-cache request, then reads that release's latest.json. Nothing about you is sent. No new library or permission.
+No keys or tokens are stored in the app. Report problems through the Netra website contact form.

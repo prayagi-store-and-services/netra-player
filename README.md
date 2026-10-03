@@ -1,7 +1,12 @@
-# Netra Eco (app)
+# Netra Player
 
-One app to see, download, install and update all Netra apps by Prayagi Team. Part of the Netra Eco family: https://prayagi-store-and-services.github.io/netra-eco/
+Video and music player by Prayagi Team, part of the Netra family: https://prayagi-store-and-services.github.io/netra-eco/
 
-Releases: https://github.com/prayagi-store-and-services/netra-eco-app/releases
+Releases: https://github.com/prayagi-store-and-services/netra-player/releases
 
-See SECURITY.md for what the app does and does not do.
+v1.0.0 is the basic player: open a video or music file from the phone and play it. More features arrive one per version, see the roadmap on the Netra website.
+
+## Build
+Android, Kotlin, Jetpack Compose. Player engine: AndroidX Media3 ExoPlayer 1.11.1. `./gradlew testDebugUnitTest assembleRelease`.
+
+Signed releases carry the Netra certificate; the update check only trusts this repository.

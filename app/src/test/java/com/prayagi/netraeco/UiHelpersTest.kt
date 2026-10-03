@@ -1,4 +1,4 @@
-package com.prayagi.netraeco
+package com.prayagi.netraplayer
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

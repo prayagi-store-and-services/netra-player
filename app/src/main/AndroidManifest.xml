@@ -3,21 +3,17 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Optional: only to show your latitude and longitude in the header. Without it the header says Unavailable. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <!-- Lets this app see whether each Netra app is installed (Android 11+ package visibility). Only these packages. -->
-    <queries>
-        <package android:name="com.aistudio.batterysentinel.ntra" />
-        <package android:name="com.aistudio.reasoningquiz.tark" />
-        <package android:name="com.aistudio.netrasensorhub.kxmpzq" />
-        <package android:name="com.aistudio.sensorguard.prvsec" />
-    </queries>
 
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="Netra Eco"
+        android:label="Netra Player"
         android:supportsRtl="true"
-        android:theme="@style/Theme.NetraEco">
+        android:theme="@style/Theme.NetraPlayer">
         <activity
             android:name=".MainActivity"
             android:exported="true">

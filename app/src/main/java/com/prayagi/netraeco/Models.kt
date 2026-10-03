@@ -1,4 +1,4 @@
-package com.prayagi.netraeco
+package com.prayagi.netraplayer
 
 /** One Netra app listed in the catalog (read from the Eco site's projects.json). */
 data class CatalogApp(

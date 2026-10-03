@@ -9,7 +9,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      APP: NetraEco
+      APP: NetraPlayer
     steps:
     - name: Upload a properly named copy of app-release.apk to every release
       shell: bash
