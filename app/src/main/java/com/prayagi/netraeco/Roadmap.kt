@@ -1,4 +1,4 @@
-package com.prayagi.netraeco
+package com.prayagi.netraplayer
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
