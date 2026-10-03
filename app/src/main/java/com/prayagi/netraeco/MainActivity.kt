@@ -1,10 +1,21 @@
-package com.prayagi.netraeco
+package com.prayagi.netraplayer
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,80 +23,62 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-/** One row of the screen: the app, what is installed, and the newest release (null = could not be read). */
-data class AppRow(
-    val app: CatalogApp,
-    val installed: Pair<Long, String>?,
-    val latest: LatestRelease?
-)
+import java.util.Date
 
 class MainActivity : ComponentActivity() {
-    private val resumeCount = mutableIntStateOf(0)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            NetraTheme { EcoScreen(resumeCount.intValue) }
-        }
+        setContent { NetraTheme { PlayerScreen() } }
     }
 
     override fun onResume() {
         super.onResume()
-        // Re-read installed versions when the user comes back from the system installer.
-        // Delete installer files left from a finished or cancelled install (not while a download runs).
-        Thread { Net.cleanLeftovers(applicationContext) }.start()
-        resumeCount.intValue = resumeCount.intValue + 1
-    }
-}
-
-private suspend fun loadRows(context: Context): List<AppRow>? = withContext(Dispatchers.IO) {
-    val catalogJson = Net.fetchText(Net.CATALOG_URL) ?: return@withContext null
-    val apps = Net.parseCatalog(catalogJson)
-    coroutineScope {
-        (listOf(Net.selfApp(context)) + apps).map { app ->
-            async {
-                AppRow(app, Net.installed(context, app.packageName), Net.fetchLatest(app))
-            }
-        }.awaitAll()
+        // Delete installer files left from a finished or cancelled update (not while a download runs).
+        Thread {
+            Net.cleanLeftovers(applicationContext)
+            UsagePing.pingIfDue(applicationContext)
+        }.start()
     }
 }
 
@@ -107,195 +100,209 @@ fun NetraTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colors, content = content)
 }
 
-@Composable
-fun EcoScreen(resumeKey: Int) {
-    val context = LocalContext.current
-    var rows by remember { mutableStateOf<List<AppRow>?>(null) }
-    var failed by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(true) }
-    var reload by remember { mutableIntStateOf(0) }
-    var roadmap by remember { mutableStateOf<List<RoadmapItem>?>(null) }
+private enum class Section(val label: String) { Play("Play"), Update("Update"), About("About") }
 
-    LaunchedEffect(resumeKey, reload) {
-        roadmap = withContext(Dispatchers.IO) { Net.fetchText(Roadmap.URL)?.let { Roadmap.parse(it) } }
-        loading = true
-        val result = loadRows(context)
-        if (result == null) failed = true else { rows = result; failed = false }
-        loading = false
+/** Last known position from the mobile network first; GPS only as a fallback. Null when there is no permission or no fix. */
+private fun lastPosition(context: Context): Location? {
+    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    if (!fine && !coarse) return null
+    val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    return try {
+        lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            ?: if (fine) lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) else null
+    } catch (e: SecurityException) {
+        null
     }
+}
 
+@Composable
+fun PlayerScreen() {
+    var section by remember { mutableStateOf(Section.Play) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Box(
-            Modifier.fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Teal, TealDark)))
-                .padding(start = 20.dp, end = 20.dp, top = 40.dp, bottom = 20.dp)
-        ) {
-            Column {
-                Text("Netra Eco", style = MaterialTheme.typography.headlineLarge, color = Color.White, fontWeight = FontWeight.Bold)
-                Text("All Netra apps in one place. Netra by Prayagi Team.", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD0ECE8))
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SelfUpdateButton(onRefresh = { reload++ })
+        Header()
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                when (section) {
+                    Section.Play -> PlaySection()
+                    Section.Update -> UpdateSection()
+                    Section.About -> AboutSection()
                 }
             }
         }
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            if (failed && rows == null) {
-                Text("Unavailable: could not load the app list. Check your internet connection and tap Check again.", color = MaterialTheme.colorScheme.error)
-            }
-            if (failed && rows != null) {
-                Text("Could not refresh. Showing the last list that loaded.", style = MaterialTheme.typography.bodySmall)
-            }
-            Spacer(Modifier.height(4.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                item(key = "roadmap") { RoadmapSection(roadmap) }
-                items(rows ?: emptyList(), key = { it.app.id }) { row -> AppCard(row) { reload++ } }
-            }
-        }
+        Footer(section) { section = it }
     }
 }
 
 @Composable
-private fun StatusPill(status: Status) {
-    val good = status == Status.UpToDate
-    val warn = status == Status.UpdateAvailable
-    val bg = when { good -> Color(0xFFD7F0DD); warn -> Color(0xFFFFE9B8); else -> MaterialTheme.colorScheme.surfaceVariant }
-    val fg = when { good -> Color(0xFF1B5E20); warn -> Color(0xFF6D4C00); else -> MaterialTheme.colorScheme.onSurface }
-    Box(Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 10.dp, vertical = 4.dp)) {
-        Text(statusLabel(status), color = fg, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-fun AppCard(row: AppRow, onChanged: () -> Unit) {
+private fun Header() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf<String?>(null) }
-    val status = statusForRelease(row.installed?.first, row.installed?.second, row.latest)
-
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(48.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Teal, TealDark))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(row.app.name.take(1).uppercase(), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.padding(start = 12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(row.app.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    if (row.app.type.isNotBlank()) Text(row.app.type, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                }
-                StatusPill(status)
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(row.app.summary, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("Installed", style = MaterialTheme.typography.labelSmall)
-                    Text(row.installed?.second?.ifBlank { "Unavailable" } ?: "Not installed", fontWeight = FontWeight.Medium)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Latest", style = MaterialTheme.typography.labelSmall)
-                    Text(row.latest?.let { it.versionName + " - " + formatSize(it.size) } ?: "Unavailable", fontWeight = FontWeight.Medium)
-                }
-            }
-            val notes = usefulNotes(row.latest?.notes.orEmpty())
-            if (notes.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text("What changed: " + notes.take(400), style = MaterialTheme.typography.bodySmall)
-            }
-            Spacer(Modifier.height(10.dp))
-            when (status) {
-                Status.NotInstalled, Status.UpdateAvailable -> Button(
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    onClick = {
-                        val latest = row.latest ?: return@Button
-                        scope.launch {
-                            busy = true
-                            message = null
-                            try {
-                                val file = withContext(Dispatchers.IO) { Net.download(context, row.app, latest) { d, t, e -> progress = DownloadText.line(d, t, e) } }
-                                Net.install(context, file)
-                            } catch (e: Exception) {
-                                message = e.message ?: "Download failed."
-                            }
-                            busy = false
-                            progress = null
-                            onChanged()
-                        }
-                    }
-                ) {
-                    Text(
-                        when {
-                            busy -> "Downloading..."
-                            status == Status.NotInstalled -> "Download and install"
-                            else -> "Update"
-                        }
-                    )
-                }
-                Status.InstalledNewer -> Text("Installed version is newer than the published one", style = MaterialTheme.typography.bodySmall)
-                Status.Unavailable -> Text("Latest version Unavailable right now", style = MaterialTheme.typography.bodySmall)
-                Status.UpToDate -> {}
-            }
-            message?.let { Spacer(Modifier.height(4.dp)); Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-            progress?.let { Spacer(Modifier.height(4.dp)); Text(it, style = MaterialTheme.typography.bodySmall) }
+    var now by remember { mutableStateOf(Date()) }
+    var place by remember { mutableStateOf(HeaderText.place(null, null)) }
+    LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val loc = withContext(Dispatchers.IO) { lastPosition(context) }
+            place = HeaderText.place(loc?.latitude, loc?.longitude)
+            delay(10_000)
+        }
+    }
+    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
+        Column {
+            Text("Netra Player", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(HeaderText.date(now) + "   " + HeaderText.clock(now), style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD0ECE8))
+            Text(place, style = MaterialTheme.typography.bodySmall, color = Color(0xFFD0ECE8))
         }
     }
 }
 
 @Composable
-private fun SelfUpdateButton(onRefresh: () -> Unit) {
+private fun Footer(current: Section, onPick: (Section) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).navigationBarsPadding().padding(8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        Section.values().forEach { s ->
+            if (s == current) Button(onClick = { onPick(s) }) { Text(s.label) }
+            else OutlinedButton(onClick = { onPick(s) }) { Text(s.label) }
+        }
+    }
+}
+
+private fun displayName(context: Context, uri: Uri): String = try {
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+        if (it.moveToFirst()) it.getString(0) else null
+    } ?: "Selected file"
+} catch (e: Exception) {
+    "Selected file"
+}
+
+@Composable
+private fun PlaySection() {
+    val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val player = remember { ExoPlayer.Builder(context).build() }
+    var title by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            error = null
+            title = displayName(context, uri)
+            player.setMediaItem(MediaItem.fromUri(uri))
+            player.prepare()
+            player.playWhenReady = true
+        }
+    }
+    val locationAsk = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var locationGranted by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+    DisposableEffect(player, lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) player.pause()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                locationGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = "This file could not be played on this phone." }
+        }
+        lifecycle.addObserver(observer)
+        player.addListener(listener)
+        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); player.release() }
+    }
+
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Play a video or song", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Pick a video or music file from this phone. Nothing is uploaded; it plays on this device.", style = MaterialTheme.typography.bodySmall)
+            Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { picker.launch(arrayOf("video/*", "audio/*")) }) {
+                Text("Open video or music file")
+            }
+            Text(title?.let { "Now playing: $it" } ?: "No file chosen yet", style = MaterialTheme.typography.bodyMedium)
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            AndroidView(
+                modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(12.dp)),
+                factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } }
+            )
+        }
+    }
+    if (!locationGranted) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("One thing is missing", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Allow location so the header can show your latitude and longitude. Until then it says Unavailable. Playing files works without it.", style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = { locationAsk.launch(Manifest.permission.ACCESS_FINE_LOCATION) }) { Text("Allow location") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateSection() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<String?>(null) }
     var release by remember { mutableStateOf<LatestRelease?>(null) }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-    OutlinedButton(enabled = !busy, onClick = {
-        scope.launch {
-            busy = true
-            message = null
-            release = null
-            val self = Net.selfApp(context)
-            val (installed, latest) = withContext(Dispatchers.IO) {
-                Net.installed(context, self.packageName) to Net.fetchLatest(self)
-            }
-            onRefresh()
-            val status = statusForRelease(installed?.first, installed?.second, latest)
-            message = selfUpdateMessage(installed?.second.orEmpty().ifBlank { "Unavailable" }, status, latest?.versionName)
-            if (status == Status.UpdateAvailable) release = latest
-            busy = false
-        }
-    }) { Text(if (busy) "Checking..." else "Check for update", color = Color.White) }
-    message?.let { Text(it, color = Color(0xFFD0ECE8), style = MaterialTheme.typography.bodySmall) }
-    progress?.let { Text(it, color = Color(0xFFD0ECE8), style = MaterialTheme.typography.bodySmall) }
-    release?.let { r ->
-        Button(enabled = !busy, onClick = {
-            scope.launch {
-                busy = true
-                try {
-                    val file = withContext(Dispatchers.IO) { Net.download(context, Net.selfApp(context), r) { d, t, e -> progress = DownloadText.line(d, t, e) } }
-                    Net.install(context, file)
-                } catch (e: Exception) {
-                    message = e.message ?: "Update failed."
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Updates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
+                scope.launch {
+                    busy = true
+                    message = null
+                    release = null
+                    val self = Net.selfApp(context)
+                    val (installed, latest) = withContext(Dispatchers.IO) { Net.installed(context, self.packageName) to Net.fetchLatest(self) }
+                    val status = statusForRelease(installed?.first, installed?.second, latest)
+                    message = selfUpdateMessage(installed?.second.orEmpty().ifBlank { "Unavailable" }, status, latest?.versionName)
+                    if (status == Status.UpdateAvailable) release = latest
+                    busy = false
                 }
-                busy = false
-                progress = null
+            }) { Text(if (busy) "Checking..." else "Check for update") }
+            message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            progress?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            release?.let { r ->
+                Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
+                    scope.launch {
+                        busy = true
+                        try {
+                            val file = withContext(Dispatchers.IO) { Net.download(context, Net.selfApp(context), r) { d, t, e -> progress = DownloadText.line(d, t, e) } }
+                            Net.install(context, file)
+                        } catch (e: Exception) {
+                            message = e.message ?: "Update failed."
+                        }
+                        busy = false
+                        progress = null
+                    }
+                }) { Text("Update to " + r.versionName) }
             }
-        }) { Text("Update to " + r.versionName) }
+        }
     }
+}
+
+@Composable
+private fun AboutSection() {
+    val context = LocalContext.current
+    var usage by remember { mutableStateOf(UsagePing.isEnabled(context)) }
+    val version = remember { Net.installed(context, context.packageName)?.second ?: "Unavailable" }
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Netra Player", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Version $version. Video and music player by Prayagi Team. Everything stays on this device.", style = MaterialTheme.typography.bodyMedium)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(Modifier.weight(1f)) {
+                    Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Once a day the app adds 1 to a public counter so the Netra site can show roughly how many people use it. No ID, no location, no files.", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = usage, onCheckedChange = { usage = it; UsagePing.setEnabled(context, it) })
+            }
+            Spacer(Modifier.height(2.dp))
+            Text("What is coming next is listed on the Netra website.", style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
