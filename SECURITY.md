@@ -1,6 +1,6 @@
 # Security notes - Netra Player
 
-Netra Player plays video and music files that you choose on your phone. Files are opened through the Android file picker and are never uploaded.
+Netra Player is only a video and music player. It plays files that you choose on your phone. Files are opened through the Android file picker and are never uploaded.
 
 ## What the app connects to
 - `https://github.com/prayagi-store-and-services/netra-player/releases/latest/download/latest.json` and the release APK, only for the "Check for update" button and the in-app update. The update is downloaded and then installed by you with the normal Android installer.
@@ -9,7 +9,6 @@ Netra Player plays video and music files that you choose on your phone. Files ar
 ## Permissions
 - INTERNET: update check and the usage count.
 - REQUEST_INSTALL_PACKAGES: installing an update you tapped.
-- ACCESS_COARSE_LOCATION / ACCESS_FINE_LOCATION (optional): only to show latitude and longitude in the header on your screen. The location is never sent anywhere. Without it the header says Unavailable.
 
 ## Update safety
 - The updater only accepts releases from the prayagi-store-and-services organization, a valid vX.Y.Z tag and a 64-character sha256, and checks the downloaded size.
