@@ -1,10 +1,6 @@
 package com.prayagi.netraplayer
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -53,7 +49,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -102,20 +97,6 @@ fun NetraTheme(content: @Composable () -> Unit) {
 
 private enum class Section(val label: String) { Play("Play"), Update("Update"), About("About") }
 
-/** Last known position from the mobile network first; GPS only as a fallback. Null when there is no permission or no fix. */
-private fun lastPosition(context: Context): Location? {
-    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    if (!fine && !coarse) return null
-    val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    return try {
-        lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            ?: if (fine) lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) else null
-    } catch (e: SecurityException) {
-        null
-    }
-}
-
 @Composable
 fun PlayerScreen() {
     var section by remember { mutableStateOf(Section.Play) }
@@ -138,20 +119,11 @@ fun PlayerScreen() {
 private fun Header() {
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
-    var place by remember { mutableStateOf(HeaderText.place(null, null)) }
     LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
-    LaunchedEffect(Unit) {
-        while (true) {
-            val loc = withContext(Dispatchers.IO) { lastPosition(context) }
-            place = HeaderText.place(loc?.latitude, loc?.longitude)
-            delay(10_000)
-        }
-    }
     Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Column {
             Text("Netra Player", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
             Text(HeaderText.date(now) + "   " + HeaderText.clock(now), style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD0ECE8))
-            Text(place, style = MaterialTheme.typography.bodySmall, color = Color(0xFFD0ECE8))
         }
     }
 }
@@ -193,18 +165,9 @@ private fun PlaySection() {
             player.playWhenReady = true
         }
     }
-    val locationAsk = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    var locationGranted by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-    }
     DisposableEffect(player, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) player.pause()
-            if (event == Lifecycle.Event.ON_RESUME) {
-                locationGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            }
         }
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = "This file could not be played on this phone." }
@@ -227,15 +190,6 @@ private fun PlaySection() {
                 modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(12.dp)),
                 factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } }
             )
-        }
-    }
-    if (!locationGranted) {
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("One thing is missing", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Allow location so the header can show your latitude and longitude. Until then it says Unavailable. Playing files works without it.", style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(onClick = { locationAsk.launch(Manifest.permission.ACCESS_FINE_LOCATION) }) { Text("Allow location") }
-            }
         }
     }
 }
