@@ -1,4 +1,4 @@
-package com.prayagi.netraeco
+package com.prayagi.netraplayer
 
 import android.content.Context
 import android.os.Build
