@@ -152,6 +152,14 @@ private fun displayName(context: Context, uri: Uri): String = try {
     "Selected file"
 }
 
+/** Player scope: video files and MP3 only. Some phones report MP3 as audio/mp3 or no type at all, so the file name is checked too. */
+internal fun isVideoOrMp3(mime: String?, name: String?): Boolean {
+    val m = mime?.lowercase().orEmpty()
+    if (m.startsWith("video/")) return true
+    if (m == "audio/mpeg" || m == "audio/mp3") return true
+    return (m.isEmpty() || m == "application/octet-stream") && name?.lowercase()?.endsWith(".mp3") == true
+}
+
 @Composable
 private fun PlaySection() {
     val context = LocalContext.current
@@ -161,7 +169,9 @@ private fun PlaySection() {
     var title by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
+        if (uri != null && !isVideoOrMp3(context.contentResolver.getType(uri), displayName(context, uri))) {
+            error = "Netra Player plays video and MP3 files only. Please pick a video or an MP3."
+        } else if (uri != null) {
             error = null
             title = displayName(context, uri)
             player.setMediaItem(MediaItem.fromUri(uri))
@@ -183,12 +193,12 @@ private fun PlaySection() {
 
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Play a video or song", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Pick a video or music file from this phone. Nothing is uploaded; it plays on this device.", style = MaterialTheme.typography.bodySmall)
+            Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Pick a video or an MP3 file from this phone. Other file types are not supported. Nothing is uploaded; it plays on this device.", style = MaterialTheme.typography.bodySmall)
             Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
-                try { picker.launch(arrayOf("video/*", "audio/*")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
+                try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
             }) {
-                Text("Open video or music file")
+                Text("Open video or MP3 file")
             }
             Text(title?.let { "Now playing: $it" } ?: "No file chosen yet", style = MaterialTheme.typography.bodyMedium)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
