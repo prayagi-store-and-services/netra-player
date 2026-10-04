@@ -28,3 +28,7 @@ The header is the Netra standard: 56 dp, fixed, only the app name, the installed
 - AndroidX Media3 (exoplayer, ui) 1.11.1.
 
 No keys or tokens are stored in the app. Report problems through the Netra website contact form.
+
+## Crash report (version 1.1.2)
+
+- If the app crashes, a short report is saved on the device. Nothing is sent by itself. The "Crash report" card has a "Send crash report" button: it first shows the exact text (app, app version, phone model, Android version, the crash trace with class names and code locations only, no exception messages) and sends only if you tap Send; "Share instead" lets you pick any app. If no crash is saved it says Unavailable. A send counts as done only when the forwarding service (formsubmit.co) confirms it. No name, email, location, files or device ID is included.
