@@ -2,6 +2,9 @@
 
 Netra Player is only a video and music player. It plays files that you choose on your phone. Files are opened through the Android file picker and are never uploaded.
 
+## Standard header (v1.1.1)
+The header is the Netra standard: 56 dp, fixed, only the app name, the installed version and the live date and time. Everything else scrolls; only this header and the bottom bar stay fixed. No new permission, network call or library. Every shown value needs a real evidence source, otherwise "Unavailable".
+
 ## What the app connects to
 - `https://github.com/prayagi-store-and-services/netra-player/releases/latest/download/latest.json` and the release APK, only for the "Check for update" button and the in-app update. The update is downloaded and then installed by you with the normal Android installer.
 - Firestore REST (public project netra-ai-jan): once a day it adds +1 to the counter `netra_active/netra-player_<yyyyMMdd>`. No user ID, no location, no files, no device data. It is on by default and can be switched off in About.

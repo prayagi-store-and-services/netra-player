@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -120,11 +121,11 @@ private fun Header() {
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
-    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
+    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().height(56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
         Column {
             val version = remember { Net.installed(context, context.packageName)?.second?.ifBlank { null } ?: "Unavailable" }
-            Text("Netra Player  v$version", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
-            Text(HeaderText.date(now) + "   " + HeaderText.clock(now), style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD0ECE8))
+            Text("Netra Player  v$version", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(HeaderText.date(now) + "   " + HeaderText.clock(now), fontSize = 12.sp, maxLines = 1, color = Color(0xFFD0ECE8))
         }
     }
 }
