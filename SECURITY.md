@@ -32,3 +32,8 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 ## Crash report (version 1.1.2)
 
 - If the app crashes, a short report is saved on the device. Nothing is sent by itself. The "Crash report" card has a "Send crash report" button: it first shows the exact text (app, app version, phone model, Android version, the crash trace with class names and code locations only, no exception messages) and sends only if you tap Send; "Share instead" lets you pick any app. If no crash is saved it says Unavailable. A send counts as done only when the forwarding service (formsubmit.co) confirms it. No name, email, location, files or device ID is included.
+
+## Video and MP3 only (version 1.1.3)
+
+- The file picker now offers video files and MP3 files only (before, it offered every audio type). A file that is picked from elsewhere is checked by its type, with the .mp3 name used when the phone gives no type, and anything else is refused with a message.
+- No new permission, network call or library. Files are still opened through Android's own picker and never uploaded.
