@@ -65,6 +65,7 @@ import java.util.Date
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashReporter.install(this)
         setContent { NetraTheme { PlayerScreen() } }
     }
 
@@ -107,7 +108,7 @@ fun PlayerScreen() {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 when (section) {
                     Section.Play -> PlaySection()
-                    Section.Update -> UpdateSection()
+                    Section.Update -> { UpdateSection(); CrashReportCard() }
                     Section.About -> AboutSection()
                 }
             }
