@@ -10,6 +10,10 @@ Netra Player is only a video and music player. It plays files that you choose on
 - INTERNET: update check and the usage count.
 - REQUEST_INSTALL_PACKAGES: installing an update you tapped.
 
+## Version in the header and "What's new" (v1.1.0)
+- The header now shows the installed version (read from Android's package info; "Unavailable" if Android does not return it). When "Check for update" finds a newer version, the release notes written for that version are shown before you tap Update. Notes come only from the release file in this repository's own releases; if there are none, nothing is shown. No new permission, no new network call, no new library.
+- Rule for all Netra apps: every datum shown must be backed by real evidence; when none is available the app shows "Unavailable" and nothing is made up.
+
 ## Android TV (v1.0.1)
 - The app also installs on Android TV (leanback launcher, no touchscreen needed). This adds no permission. It is built and unit-tested in CI but not yet tried on a real TV by us.
 
