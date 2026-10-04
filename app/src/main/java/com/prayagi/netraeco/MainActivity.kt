@@ -122,7 +122,8 @@ private fun Header() {
     LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
     Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Column {
-            Text("Netra Player", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
+            val version = remember { Net.installed(context, context.packageName)?.second?.ifBlank { null } ?: "Unavailable" }
+            Text("Netra Player  v$version", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
             Text(HeaderText.date(now) + "   " + HeaderText.clock(now), style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD0ECE8))
         }
     }
@@ -224,6 +225,11 @@ private fun UpdateSection() {
             message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             progress?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             release?.let { r ->
+                val notes = usefulNotes(r.notes)
+                if (notes.isNotBlank()) {
+                    Text("What's new in " + r.versionName + ":", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(notes.take(800), style = MaterialTheme.typography.bodySmall)
+                }
                 Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
                     scope.launch {
                         busy = true
