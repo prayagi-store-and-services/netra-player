@@ -11,8 +11,8 @@ android {
     applicationId = "com.prayagi.netraplayer"
     minSdk = 26
     targetSdk = 36
-    versionCode = 6
-    versionName = "1.1.3"
+    versionCode = 7
+    versionName = "1.1.4"
   }
 
   signingConfigs {
