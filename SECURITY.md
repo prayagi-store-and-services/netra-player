@@ -44,3 +44,8 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 - New local storage (this phone only, not backed up because backup is off): the address Android gave for the file, its name, the stop position and the save time. Nothing is sent anywhere.
 - The file picker now keeps read access to the file you picked (Android's "persistable" permission, requested through the same picker, no new app permission), so the "Continue" button can reopen it. If Android no longer allows it, the app says so and asks you to pick the file again.
 - No new app permission, network call or library.
+
+## Permissions list (version 1.1.5)
+
+- New "Permissions" card on the Update screen: lists each permission the app uses (Internet, Install apps), the plain reason, and the live status read from Android when you open the screen (no timer). Tapping "Install apps" opens the Android page where you can allow or stop it. Internet is a normal permission that cannot be switched off from there, so it is shown as always allowed.
+- No new permission, network call or library.
