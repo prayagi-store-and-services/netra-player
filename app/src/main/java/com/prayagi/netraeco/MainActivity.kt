@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -97,16 +98,21 @@ fun NetraTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colors, content = content)
 }
 
+/** True while the video fills the whole screen (header, footer and banner are hidden). */
+internal val playerFullscreen = mutableStateOf(false)
+
 private enum class Section(val label: String) { Play("Play"), Update("Update"), About("About") }
 
 @Composable
 fun PlayerScreen() {
     var section by remember { mutableStateOf(Section.Play) }
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Header()
+    val full by playerFullscreen
+    val isFull = full && section == Section.Play
+    Column(Modifier.fillMaxSize().background(if (isFull) Color.Black else MaterialTheme.colorScheme.background)) {
+        if (!isFull) Header()
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                FestivalBannerCard(modifier = Modifier.fillMaxWidth())
+            Column(Modifier.fillMaxSize().then(if (isFull) Modifier else Modifier.verticalScroll(rememberScrollState()).padding(16.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
                 when (section) {
                     Section.Play -> PlaySection()
                     Section.Update -> { UpdateSection(); CrashReportCard(); PermissionsCard(playerPermissions()) }
@@ -114,7 +120,7 @@ fun PlayerScreen() {
                 }
             }
         }
-        Footer(section) { section = it }
+        if (!isFull) Footer(section) { section = it }
     }
 }
 
@@ -170,6 +176,17 @@ private fun PlaySection() {
     var title by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var currentUri by remember { mutableStateOf<String?>(null) }
+    var hasVideo by remember { mutableStateOf(true) }
+    val full by playerFullscreen
+    fun setFull(on: Boolean) {
+        playerFullscreen.value = on
+        val act = context as? android.app.Activity ?: return
+        act.requestedOrientation = if (on) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        val c = androidx.core.view.WindowCompat.getInsetsController(act.window, act.window.decorView)
+        if (on) { c.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE; c.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars()) }
+        else c.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+    }
+    androidx.activity.compose.BackHandler(enabled = full) { setFull(false) }
     var last by remember { mutableStateOf(LastPlayed.load(context)) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && !isVideoOrMp3(context.contentResolver.getType(uri), displayName(context, uri))) {
@@ -199,45 +216,76 @@ private fun PlaySection() {
         }
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = "This file could not be played on this phone." }
+            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) { hasVideo = tracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO) }
         }
         lifecycle.addObserver(observer)
         player.addListener(listener)
-        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); player.release() }
+        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); player.release(); if (playerFullscreen.value) { playerFullscreen.value = false } }
     }
 
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Pick a video or an MP3 file from this phone. Other file types are not supported. Nothing is uploaded; it plays on this device.", style = MaterialTheme.typography.bodySmall)
-            Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
-                try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
-            }) {
-                Text("Open video or MP3 file")
-            }
-            val resume = last
-            if (resume != null && currentUri == null) {
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
-                    try {
-                        val u = android.net.Uri.parse(resume.uri)
-                        error = null
-                        title = resume.name
-                        currentUri = resume.uri
-                        player.setMediaItem(MediaItem.fromUri(u))
-                        player.prepare()
-                        player.seekTo(resume.positionMs)
-                        player.playWhenReady = true
-                    } catch (e: Exception) {
-                        currentUri = null
-                        error = "This file can no longer be opened. Pick it again."
-                    }
-                }) { Text("Continue: ${resume.name} at ${LastPlayed.formatPosition(resume.positionMs)}") }
-            }
-            Text(title?.let { "Now playing: $it" } ?: "No file chosen yet", style = MaterialTheme.typography.bodyMedium)
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+    val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
+    val openPicker = {
+        try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
+    }
+    val playerView: @Composable (Modifier) -> Unit = { mod ->
+        Box(mod.background(Color.Black)) {
             AndroidView(
-                modifier = Modifier.fillMaxWidth().height(playerHeightDp(tv).dp).clip(RoundedCornerShape(12.dp)),
-                factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true; isFocusable = true; isFocusableInTouchMode = true } }
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        this.player = player
+                        useController = true
+                        controllerShowTimeoutMs = 4000
+                        setShowPreviousButton(false); setShowNextButton(false)
+                        setShowRewindButton(true); setShowFastForwardButton(true)
+                        isFocusable = true; isFocusableInTouchMode = true
+                    }
+                },
+                update = { v -> v.setFullscreenButtonClickListener { on -> setFull(on) } }
             )
+            if (!hasVideo) {
+                Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Audio", color = Color(0xFF4DB6AC), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(title ?: "", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                }
+            }
+        }
+    }
+    if (full && currentUri != null) {
+        playerView(Modifier.fillMaxWidth().height(screenH.dp))
+    } else if (currentUri == null) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Plays on this phone only. Nothing is uploaded. Video and MP3 files only.", style = MaterialTheme.typography.bodySmall)
+                Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open video or MP3 file") }
+                val resume = last
+                if (resume != null) {
+                    OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
+                        try {
+                            val u = android.net.Uri.parse(resume.uri)
+                            error = null
+                            title = resume.name
+                            currentUri = resume.uri
+                            player.setMediaItem(MediaItem.fromUri(u))
+                            player.prepare()
+                            player.seekTo(resume.positionMs)
+                            player.playWhenReady = true
+                        } catch (e: Exception) {
+                            currentUri = null
+                            error = "This file can no longer be opened. Pick it again."
+                        }
+                    }) { Text("Continue: ${resume.name} at ${LastPlayed.formatPosition(resume.positionMs)}", maxLines = 2) }
+                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            playerView(Modifier.fillMaxWidth().aspectRatio(if (tv) 16f / 9f else 16f / 9f).clip(RoundedCornerShape(12.dp)))
+            Text(title ?: "", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 2)
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open another file") }
         }
     }
 }
