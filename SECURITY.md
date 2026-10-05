@@ -49,3 +49,8 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 
 - New "Permissions" card on the Update screen: lists each permission the app uses (Internet, Install apps), the plain reason, and the live status read from Android when you open the screen (no timer). Tapping "Install apps" opens the Android page where you can allow or stop it. Internet is a normal permission that cannot be switched off from there, so it is shown as always allowed.
 - No new permission, network call or library.
+
+## Festival banner (version 1.1.6)
+
+- A card at the top of the app shows today's festival (India calendar, bundled in the app, from timeanddate.com India 2026-2027) or "coming soon" for a festival within 3 days, with the live date and time. India's Independence Day (15 August) is shown too. It has no death anniversaries and no other country's days. After 2027 there is no data, so no banner is shown and nothing is invented. A date marked "may differ by a day" says so.
+- It works offline. No new permission, network call or library.
