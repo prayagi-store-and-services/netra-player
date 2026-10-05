@@ -168,12 +168,18 @@ private fun PlaySection() {
     val tv = remember { isTelevision(context) }
     var title by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var currentUri by remember { mutableStateOf<String?>(null) }
+    var last by remember { mutableStateOf(LastPlayed.load(context)) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && !isVideoOrMp3(context.contentResolver.getType(uri), displayName(context, uri))) {
             error = "Netra Player plays video and MP3 files only. Please pick a video or an MP3."
         } else if (uri != null) {
             error = null
             title = displayName(context, uri)
+            try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
+            currentUri = uri.toString()
+            LastPlayed.save(context, currentUri!!, title ?: "Selected file", 0L)
+            PlayerWidgetProvider.refresh(context)
             player.setMediaItem(MediaItem.fromUri(uri))
             player.prepare()
             player.playWhenReady = true
@@ -181,7 +187,14 @@ private fun PlaySection() {
     }
     DisposableEffect(player, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) player.pause()
+            if (event == Lifecycle.Event.ON_STOP) {
+                player.pause()
+                val u = currentUri
+                if (u != null) {
+                    LastPlayed.save(context, u, title ?: "Selected file", player.currentPosition)
+                    PlayerWidgetProvider.refresh(context)
+                }
+            }
         }
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = "This file could not be played on this phone." }
@@ -199,6 +212,24 @@ private fun PlaySection() {
                 try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
             }) {
                 Text("Open video or MP3 file")
+            }
+            val resume = last
+            if (resume != null && currentUri == null) {
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
+                    try {
+                        val u = android.net.Uri.parse(resume.uri)
+                        error = null
+                        title = resume.name
+                        currentUri = resume.uri
+                        player.setMediaItem(MediaItem.fromUri(u))
+                        player.prepare()
+                        player.seekTo(resume.positionMs)
+                        player.playWhenReady = true
+                    } catch (e: Exception) {
+                        currentUri = null
+                        error = "This file can no longer be opened. Pick it again."
+                    }
+                }) { Text("Continue: ${resume.name} at ${LastPlayed.formatPosition(resume.positionMs)}") }
             }
             Text(title?.let { "Now playing: $it" } ?: "No file chosen yet", style = MaterialTheme.typography.bodyMedium)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
