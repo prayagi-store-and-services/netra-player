@@ -108,7 +108,7 @@ fun PlayerScreen() {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 when (section) {
                     Section.Play -> PlaySection()
-                    Section.Update -> { UpdateSection(); CrashReportCard() }
+                    Section.Update -> { UpdateSection(); CrashReportCard(); PermissionsCard(playerPermissions()) }
                     Section.About -> AboutSection()
                 }
             }
