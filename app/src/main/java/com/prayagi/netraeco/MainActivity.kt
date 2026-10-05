@@ -106,6 +106,7 @@ fun PlayerScreen() {
         Header()
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                FestivalBannerCard(modifier = Modifier.fillMaxWidth())
                 when (section) {
                     Section.Play -> PlaySection()
                     Section.Update -> { UpdateSection(); CrashReportCard(); PermissionsCard(playerPermissions()) }
