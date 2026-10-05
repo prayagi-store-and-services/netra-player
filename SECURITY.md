@@ -37,3 +37,10 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 
 - The file picker now offers video files and MP3 files only (before, it offered every audio type). A file that is picked from elsewhere is checked by its type, with the .mp3 name used when the phone gives no type, and anything else is refused with a message.
 - No new permission, network call or library. Files are still opened through Android's own picker and never uploaded.
+
+## Home screen widget and "Continue" (version 1.1.4)
+
+- New home screen widget "Netra Player - Continue": shows the last video or MP3 you played and where it stopped, with the time it was saved. If nothing was played yet it shows "Unavailable". The widget has no timer and no background work: the app asks it to redraw only when a new position is saved (when you pick a file and when the app leaves the screen).
+- New local storage (this phone only, not backed up because backup is off): the address Android gave for the file, its name, the stop position and the save time. Nothing is sent anywhere.
+- The file picker now keeps read access to the file you picked (Android's "persistable" permission, requested through the same picker, no new app permission), so the "Continue" button can reopen it. If Android no longer allows it, the app says so and asks you to pick the file again.
+- No new app permission, network call or library.
