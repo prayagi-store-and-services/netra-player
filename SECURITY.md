@@ -54,3 +54,10 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 
 - A card at the top of the app shows today's festival (India calendar, bundled in the app, from timeanddate.com India 2026-2027) or "coming soon" for a festival within 3 days, with the live date and time. India's Independence Day (15 August) is shown too. It has no death anniversaries and no other country's days. After 2027 there is no data, so no banner is shown and nothing is invented. A date marked "may differ by a day" says so.
 - It works offline. No new permission, network call or library.
+
+## Real video player screen (version 1.1.7)
+- With no file chosen, the big empty black box is gone. You see one clear "Open video or MP3 file" button and, if you played something before, a "Continue" button with the real saved position.
+- Once a file is open, the video shows at 16:9 with the standard Media3 controls: play and pause, a seek bar, current time and total length, back and forward jump buttons, and a full-screen button. The controls hide after 4 seconds and come back on a tap.
+- Full screen hides the header, footer and banner, turns the phone to landscape and hides the system bars (swipe to see them). Back or the full-screen button leaves full screen. Playback continues through the turn.
+- An MP3 shows "Audio" and the file name in the player area. A file with no video track is detected from the file itself, not guessed.
+- No new permission, library or network call. The activity now handles screen turns itself (configChanges) so playback is not restarted when the phone turns.
