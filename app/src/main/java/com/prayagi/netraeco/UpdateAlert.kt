@@ -36,7 +36,7 @@ object UpdateAlert {
     private val CHANNEL_ID = if (BEEP) "netra_app_update_beep" else "netra_app_update"
 
     fun start(activity: Activity) {
-        schedule(activity.applicationContext)
+        try { schedule(activity.applicationContext) } catch (_: Exception) { /* background check unavailable; the manual check still works */ }
         if (Build.VERSION.SDK_INT >= 33 &&
             activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
