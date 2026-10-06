@@ -64,8 +64,14 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 
 class MainActivity : ComponentActivity() {
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        UpdateAlert.handle(this, intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        UpdateAlert.start(this)
         CrashReporter.install(this)
         setContent { NetraTheme { PlayerScreen() } }
     }
