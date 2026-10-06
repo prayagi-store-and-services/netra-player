@@ -121,7 +121,7 @@ fun PlayerScreen() {
                 if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
                 when (section) {
                     Section.Play -> PlaySection()
-                    Section.Update -> { UpdateSection(); CrashReportCard(); PermissionsCard(playerPermissions()) }
+                    Section.Update -> { UpdateSection(); DownloadManagerCard(); CrashReportCard(); PermissionsCard(playerPermissions()) }
                     Section.About -> AboutSection()
                 }
             }
@@ -328,19 +328,7 @@ private fun UpdateSection() {
                     Text("What's new in " + r.versionName + ":", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     Text(notes.take(800), style = MaterialTheme.typography.bodySmall)
                 }
-                Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
-                    scope.launch {
-                        busy = true
-                        try {
-                            val file = withContext(Dispatchers.IO) { Net.download(context, Net.selfApp(context), r) { d, t, e -> progress = DownloadText.line(d, t, e) } }
-                            Net.install(context, file)
-                        } catch (e: Exception) {
-                            message = e.message ?: "Update failed."
-                        }
-                        busy = false
-                        progress = null
-                    }
-                }) { Text("Update to " + r.versionName) }
+                SelfDownloadButton(r)
             }
         }
     }
