@@ -1,5 +1,9 @@
 # Security notes - Netra Player
 
+## Update alert (v1.1.9)
+- Every 6 hours (network needed) the app checks its own public GitHub release and, when a newer version exists, shows one notification. Tapping it downloads the build, checks size and SHA-256, and opens the Android installer. The notification is silent.
+- New permission: POST_NOTIFICATIONS (asked once on Android 13+; if refused, no notification is shown). New library: AndroidX WorkManager work-runtime-ktx 2.10.0. No new server, no personal data.
+
 ## Clearer playback errors (v1.1.8)
 - When a file cannot be played, the message now says the real reason Android reports: file not found, permission lost, format not supported by this phone, damaged file, or too demanding for the phone. Other errors keep the old generic message. Nothing is guessed.
 - No new permission, library or network call. The message is shown on screen only; nothing is sent anywhere.
