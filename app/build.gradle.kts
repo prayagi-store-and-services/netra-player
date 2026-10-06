@@ -11,8 +11,8 @@ android {
     applicationId = "com.prayagi.netraplayer"
     minSdk = 26
     targetSdk = 36
-    versionCode = 11
-    versionName = "1.1.8"
+    versionCode = 12
+    versionName = "1.1.9"
   }
 
   signingConfigs {
@@ -51,6 +51,7 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.material3)
   implementation(libs.androidx.core.ktx)
+  implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.ui)
   testImplementation(libs.junit)
