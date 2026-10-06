@@ -85,7 +85,7 @@ object DownloadCenter {
                     }
                     put(Item(key, app.id, app.name, release.versionName, release.versionCode, app.packageName, release.size, release.size, null, DONE))
                 } catch (e: Exception) {
-                    put(Item(key, app.id, app.name, release.versionName, release.versionCode, app.packageName, 0L, release.size, null, FAILED, plainFailure(e, "Download failed.")))
+                    put(Item(key, app.id, app.name, release.versionName, release.versionCode, app.packageName, 0L, release.size, null, FAILED, (e.message ?: "Download failed.")))
                 }
             }
         }
