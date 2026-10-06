@@ -215,7 +215,7 @@ private fun PlaySection() {
             }
         }
         val listener = object : androidx.media3.common.Player.Listener {
-            override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = "This file could not be played on this phone." }
+            override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = playbackErrorMessage(e.errorCode) }
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) { hasVideo = tracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO) }
         }
         lifecycle.addObserver(observer)

@@ -1,5 +1,9 @@
 # Security notes - Netra Player
 
+## Clearer playback errors (v1.1.8)
+- When a file cannot be played, the message now says the real reason Android reports: file not found, permission lost, format not supported by this phone, damaged file, or too demanding for the phone. Other errors keep the old generic message. Nothing is guessed.
+- No new permission, library or network call. The message is shown on screen only; nothing is sent anywhere.
+
 Netra Player is only a video and music player. It plays files that you choose on your phone. Files are opened through the Android file picker and are never uploaded.
 
 ## Standard header (v1.1.1)
