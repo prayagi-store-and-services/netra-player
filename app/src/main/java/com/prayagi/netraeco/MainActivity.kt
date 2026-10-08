@@ -177,11 +177,27 @@ internal fun isVideoOrMp3(mime: String?, name: String?): Boolean {
 private fun PlaySection() {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val player = remember { ExoPlayer.Builder(context).build() }
+    var connectedPlayer by remember { mutableStateOf<androidx.media3.session.MediaController?>(null) }
+    var connectionError by remember { mutableStateOf<String?>(null) }
+    DisposableEffect(context) {
+        val token = androidx.media3.session.SessionToken(context,
+            android.content.ComponentName(context, PlaybackService::class.java))
+        val future = androidx.media3.session.MediaController.Builder(context, token).buildAsync()
+        future.addListener({
+            try { connectedPlayer = future.get() }
+            catch (_: Exception) { connectionError = "Playback service unavailable. Reopen the app to retry." }
+        }, androidx.core.content.ContextCompat.getMainExecutor(context))
+        onDispose { androidx.media3.session.MediaController.releaseFuture(future) }
+    }
+    val player = connectedPlayer
+    if (player == null) {
+        Text(connectionError ?: "Connecting to player...")
+        return
+    }
     val tv = remember { isTelevision(context) }
-    var title by remember { mutableStateOf<String?>(null) }
+    var title by remember { mutableStateOf(player.mediaMetadata.title?.toString()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var currentUri by remember { mutableStateOf<String?>(null) }
+    var currentUri by remember { mutableStateOf(player.currentMediaItem?.localConfiguration?.uri?.toString()) }
     var hasVideo by remember { mutableStateOf(true) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
     var choosingTracks by remember { mutableStateOf(false) }
@@ -206,15 +222,21 @@ private fun PlaySection() {
             currentUri = uri.toString()
             LastPlayed.save(context, currentUri!!, title ?: "Selected file", 0L)
             PlayerWidgetProvider.refresh(context)
-            player.setMediaItem(MediaItem.fromUri(uri))
+            player.setMediaItem(MediaItem.Builder().setUri(uri).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
             player.prepare()
             player.playWhenReady = true
         }
     }
     DisposableEffect(player, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, false).build()
+            }
             if (event == Lifecycle.Event.ON_STOP) {
-                player.pause()
+                // Screen off/background: detach video selection; audio continues in the service.
+                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, true).build()
                 val u = currentUri
                 if (u != null) {
                     LastPlayed.save(context, u, title ?: "Selected file", player.currentPosition)
@@ -231,7 +253,7 @@ private fun PlaySection() {
         }
         lifecycle.addObserver(observer)
         player.addListener(listener)
-        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); player.release(); if (playerFullscreen.value) { playerFullscreen.value = false } }
+        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); if (playerFullscreen.value) { playerFullscreen.value = false } }
     }
 
     if (choosingTracks) TrackChoiceDialog(player, tracks) { choosingTracks = false }
@@ -283,7 +305,7 @@ private fun PlaySection() {
                             error = null
                             title = resume.name
                             currentUri = resume.uri
-                            player.setMediaItem(MediaItem.fromUri(u))
+                            player.setMediaItem(MediaItem.Builder().setUri(u).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
                             player.prepare()
                             player.seekTo(resume.positionMs)
                             player.playWhenReady = true
