@@ -11,6 +11,7 @@ android {
     applicationId = "com.prayagi.netraplayer"
     minSdk = 26
     targetSdk = 36
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     versionCode = 14
     versionName = "1.1.11"
   }
@@ -55,4 +56,7 @@ dependencies {
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.ui)
   testImplementation(libs.junit)
+  androidTestImplementation("androidx.test:runner:1.6.2")
+  androidTestImplementation("androidx.test:core-ktx:1.6.1")
+  androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }
