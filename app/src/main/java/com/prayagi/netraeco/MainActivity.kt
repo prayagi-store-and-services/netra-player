@@ -197,7 +197,7 @@ private fun PlaySection() {
     val tv = remember { isTelevision(context) }
     var title by remember { mutableStateOf(player.mediaMetadata.title?.toString()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var currentUri by remember { mutableStateOf(player.currentMediaItem?.localConfiguration?.uri?.toString()) }
+    var currentUri by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }) }
     var hasVideo by remember { mutableStateOf(true) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
     var choosingTracks by remember { mutableStateOf(false) }
@@ -222,7 +222,7 @@ private fun PlaySection() {
             currentUri = uri.toString()
             LastPlayed.save(context, currentUri!!, title ?: "Selected file", 0L)
             PlayerWidgetProvider.refresh(context)
-            player.setMediaItem(MediaItem.Builder().setUri(uri).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
+            player.setMediaItem(MediaItem.Builder().setUri(uri).setMediaId(uri.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
             player.prepare()
             player.playWhenReady = true
         }
@@ -305,7 +305,7 @@ private fun PlaySection() {
                             error = null
                             title = resume.name
                             currentUri = resume.uri
-                            player.setMediaItem(MediaItem.Builder().setUri(u).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
+                            player.setMediaItem(MediaItem.Builder().setUri(u).setMediaId(u.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
                             player.prepare()
                             player.seekTo(resume.positionMs)
                             player.playWhenReady = true
