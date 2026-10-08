@@ -18,14 +18,17 @@ import java.io.File
 class PlayerVisualTest {
     @Test fun homeAndTrackDialog() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(
+            instrumentation.uiAutomation.executeShellCommand("pm grant com.prayagi.netraplayer android.permission.POST_NOTIFICATIONS")
+        ).use { it.readBytes() }
         val context = instrumentation.targetContext
         val screenshots = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             instrumentation.waitForIdleSync()
             Thread.sleep(1000)
-            instrumentation.uiAutomation.takeScreenshot().let { image ->
-                File(screenshots, "home.png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-            }
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("screencap -p /data/local/tmp/player-home.png")
+            ).use { it.readBytes() }
             var player: ExoPlayer? = null
             scenario.onActivity { activity ->
                 val p = ExoPlayer.Builder(activity).build()
@@ -40,9 +43,9 @@ class PlayerVisualTest {
             }
             instrumentation.waitForIdleSync()
             Thread.sleep(700)
-            instrumentation.uiAutomation.takeScreenshot().let { image ->
-                File(screenshots, "tracks.png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-            }
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("screencap -p /data/local/tmp/player-tracks.png")
+            ).use { it.readBytes() }
             scenario.onActivity { player?.release() }
         }
     }
