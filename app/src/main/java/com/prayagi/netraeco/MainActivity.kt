@@ -204,12 +204,14 @@ private fun PlaySection() {
     val folderScope = rememberCoroutineScope()
     var folderFiles by remember { mutableStateOf<List<FolderMedia>>(emptyList()) }
     var folderBusy by remember { mutableStateOf(false) }
+    var folderPage by remember { mutableStateOf(0) }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree != null) folderScope.launch {
             folderBusy = true
             try {
                 context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 folderFiles = withContext(Dispatchers.IO) { listFolderMedia(context, tree) }
+                folderPage = 0
                 error = if (folderFiles.isEmpty()) "No supported video or MP3 files in this folder." else null
             } catch (_: Exception) { folderFiles = emptyList(); error = "Folder unavailable. Choose it again." }
             finally { folderBusy = false }
@@ -224,6 +226,9 @@ private fun PlaySection() {
                 error = "Open a video first."
             } else {
                 try {
+                    val descriptor = context.contentResolver.openAssetFileDescriptor(subtitle, "r")
+                        ?: throw java.io.IOException("Subtitle unavailable")
+                    descriptor.use { if (it.length > 5L * 1024L * 1024L) throw java.io.IOException("Subtitle too large") }
                     context.contentResolver.takePersistableUriPermission(subtitle, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     val item = player.currentMediaItem!!
                     val position = player.currentPosition
@@ -352,7 +357,15 @@ private fun PlaySection() {
             try { subtitlePicker.launch(arrayOf("application/x-subrip", "text/plain", "application/octet-stream")) }
             catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
         }) { Text("Open .srt subtitles") }
-        folderFiles.forEachIndexed { index, file ->
+        if (folderFiles.isNotEmpty()) {
+            Text("Folder files: ${folderFiles.size}")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(enabled = folderPage > 0, onClick = { folderPage-- }) { Text("Earlier files") }
+                OutlinedButton(enabled = (folderPage + 1) * 30 < folderFiles.size, onClick = { folderPage++ }) { Text("More files") }
+            }
+        }
+        folderFiles.drop(folderPage * 30).take(30).forEachIndexed { offset, file ->
+            val index = folderPage * 30 + offset
             OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
                 player.setMediaItems(folderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(f.name).build()).build() }, index, 0L)
