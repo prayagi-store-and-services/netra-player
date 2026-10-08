@@ -115,10 +115,10 @@ class BackgroundPlaybackTest {
             shell("cmd statusbar collapse")
             scenario.moveToState(Lifecycle.State.RESUMED)
             shell("am start -n com.prayagi.netraplayer/.MainActivity")
-            awaitNode("loaded player") { it.text?.contains("Open another file") == true }
+            awaitNode("loaded player") { it.text?.contains("Second test audio") == true }
             capture("loaded")
             shell("cmd uimode night yes")
-            awaitNode("dark player") { it.text?.contains("Open another file") == true }
+            awaitNode("dark player") { it.text?.contains("Second test audio") == true }
             Thread.sleep(800)
             capture("dark")
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
