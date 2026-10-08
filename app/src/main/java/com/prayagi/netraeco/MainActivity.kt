@@ -367,24 +367,7 @@ private fun PlaySection() {
             try { subtitlePicker.launch(arrayOf("application/x-subrip", "text/plain", "application/octet-stream")) }
             catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
         }) { Text("Open .srt subtitles") }
-        if (folderFiles.isNotEmpty()) {
-            Text("Folder files: ${folderFiles.size}")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = folderPage > 0, onClick = { folderPage-- }) { Text("Earlier files") }
-                OutlinedButton(enabled = (folderPage + 1) * 30 < folderFiles.size, onClick = { folderPage++ }) { Text("More files") }
-            }
-        }
-        folderFiles.drop(folderPage * 30).take(30).forEachIndexed { offset, file ->
-            val index = folderPage * 30 + offset
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                player.setMediaItems(folderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
-                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(f.name).build()).build() }, index, 0L)
-                title = file.name
-                currentUri = file.uri.toString()
-                player.prepare()
-                player.playWhenReady = true
-            }) { Text(file.name, maxLines = 2) }
-        }
+
     }
     if (full && currentUri != null) {
         playerView(Modifier.fillMaxWidth().height(screenH.dp))
@@ -421,6 +404,26 @@ private fun PlaySection() {
             Text(title ?: "", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 2)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open another file") }
+        }
+    }
+    if (!full) {
+        if (folderFiles.isNotEmpty()) {
+            Text("Folder files: ${folderFiles.size}")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(enabled = folderPage > 0, onClick = { folderPage-- }) { Text("Earlier files") }
+                OutlinedButton(enabled = (folderPage + 1) * 30 < folderFiles.size, onClick = { folderPage++ }) { Text("More files") }
+            }
+        }
+        folderFiles.drop(folderPage * 30).take(30).forEachIndexed { offset, file ->
+            val index = folderPage * 30 + offset
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                player.setMediaItems(folderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
+                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(f.name).build()).build() }, index, 0L)
+                title = file.name
+                currentUri = file.uri.toString()
+                player.prepare()
+                player.playWhenReady = true
+            }) { Text(file.name, maxLines = 2) }
         }
     }
 }
