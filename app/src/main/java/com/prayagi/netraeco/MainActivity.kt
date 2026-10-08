@@ -183,6 +183,8 @@ private fun PlaySection() {
     var error by remember { mutableStateOf<String?>(null) }
     var currentUri by remember { mutableStateOf<String?>(null) }
     var hasVideo by remember { mutableStateOf(true) }
+    var tracks by remember { mutableStateOf(player.currentTracks) }
+    var choosingTracks by remember { mutableStateOf(false) }
     val full by playerFullscreen
     fun setFull(on: Boolean) {
         playerFullscreen.value = on
@@ -222,13 +224,17 @@ private fun PlaySection() {
         }
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = playbackErrorMessage(e.errorCode) }
-            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) { hasVideo = tracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO) }
+            override fun onTracksChanged(updated: androidx.media3.common.Tracks) {
+                tracks = updated
+                hasVideo = updated.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)
+            }
         }
         lifecycle.addObserver(observer)
         player.addListener(listener)
         onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); player.release(); if (playerFullscreen.value) { playerFullscreen.value = false } }
     }
 
+    if (choosingTracks) TrackChoiceDialog(player, tracks) { choosingTracks = false }
     val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
     val openPicker = {
         try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
@@ -249,6 +255,10 @@ private fun PlaySection() {
                 },
                 update = { v -> v.setFullscreenButtonClickListener { on -> setFull(on) } }
             )
+            OutlinedButton(
+                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                onClick = { choosingTracks = true }
+            ) { Text("Tracks", color = Color.White) }
             if (!hasVideo) {
                 Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Audio", color = Color(0xFF4DB6AC), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -353,5 +363,69 @@ private fun AboutSection() {
             Spacer(Modifier.height(2.dp))
             Text("What is coming next is listed on the Netra website.", style = MaterialTheme.typography.bodySmall)
         }
+    }
+}
+
+/** Uses only the supported tracks reported by the open file. No invented languages. */
+@Composable
+internal fun TrackChoiceDialog(
+    player: androidx.media3.common.Player,
+    tracks: androidx.media3.common.Tracks,
+    onClose: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Audio and subtitles") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(androidx.media3.common.C.TRACK_TYPE_AUDIO to "Audio", androidx.media3.common.C.TRACK_TYPE_TEXT to "Subtitles").forEach { (type, heading) ->
+                    Text(heading, fontWeight = FontWeight.Bold)
+                    val groups = tracks.groups.filter { it.type == type }
+                    var offered = 0
+                    groups.forEach { group ->
+                        for (index in 0 until group.length) {
+                            if (group.isTrackSupported(index)) {
+                                offered++
+                                val format = group.getTrackFormat(index)
+                                val label = trackChoiceLabel(format.label, format.language, offered)
+                                val selected = group.isTrackSelected(index)
+                                OutlinedButton(onClick = {
+                                    player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                                        .setTrackTypeDisabled(type, false)
+                                        .setOverrideForType(androidx.media3.common.TrackSelectionOverride(group.mediaTrackGroup, index))
+                                        .build()
+                                    onClose()
+                                }) { Text((if (selected) "Selected: " else "") + label) }
+                            }
+                        }
+                    }
+                    if (offered == 0) Text("Unavailable: this file has no supported $heading track.")
+                    OutlinedButton(onClick = {
+                        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                            .clearOverridesOfType(type).setTrackTypeDisabled(type, false).build()
+                        onClose()
+                    }) { Text("Automatic $heading") }
+                    if (type == androidx.media3.common.C.TRACK_TYPE_TEXT) {
+                        OutlinedButton(onClick = {
+                            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                                .clearOverridesOfType(type).setTrackTypeDisabled(type, true).build()
+                            onClose()
+                        }) { Text("Subtitles off") }
+                    }
+                }
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = onClose) { Text("Close") } }
+    )
+}
+
+internal fun trackChoiceLabel(label: String?, language: String?, number: Int): String {
+    val name = label?.trim()?.takeIf { it.isNotEmpty() }
+    val lang = language?.trim()?.takeIf { it.isNotEmpty() && it != "und" }
+    return when {
+        name != null && lang != null -> "$name ($lang)"
+        name != null -> name
+        lang != null -> lang
+        else -> "Track $number (language unavailable)"
     }
 }

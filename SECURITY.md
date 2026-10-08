@@ -1,5 +1,11 @@
 # Security notes - Netra Player
 
+## Track choices (v1.1.11)
+- Audio and subtitle choices list only supported tracks returned by Media3 for the selected file. Unknown languages are labelled unavailable, never guessed. Automatic selection and subtitles off are available.
+- No new permission, dependency, network request or stored data. Media files stay on the phone.
+- Release requires green build/tests. Device validation is separate from build checks; no device crash-free percentage is claimed.
+
+
 ## Downloads fix and download list (v1.1.10)
 - Download progress now counts up (percent downloaded) and the time left no longer rises. A finished update file stays in a Downloads list with Install and Delete, and is deleted automatically once that version is installed. Partial or unknown files are cleaned.
 - Files stay in the app's private cache folder only. No new permission, library or network call.

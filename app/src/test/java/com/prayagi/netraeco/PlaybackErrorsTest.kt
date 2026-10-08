@@ -6,6 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackErrorsTest {
+    @Test fun labelsUseOnlyFileMetadata() {
+        assertEquals("Commentary (en)", trackChoiceLabel("Commentary", "en", 1))
+        assertEquals("fr", trackChoiceLabel(null, "fr", 2))
+        assertEquals("Track 3 (language unavailable)", trackChoiceLabel("", "und", 3))
+        assertEquals("Track 1 (language unavailable)", trackChoiceLabel(null, null, 1))
+        assertEquals("Original", trackChoiceLabel(" Original ", "und", 1))
+    }
+
     @Test fun missingFileSaysSo() {
         assertTrue(playbackErrorMessage(PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND).contains("not found"))
     }
