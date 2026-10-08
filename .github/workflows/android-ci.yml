@@ -58,3 +58,29 @@ jobs:
           name: NetraPlayer-test-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Enable Android emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Device smoke and screenshots
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace
+            mkdir -p app/build/device-screenshots
+            adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/screenshots/. app/build/device-screenshots/
+      - name: Upload device evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Player-device-evidence
+          path: |
+            app/build/device-screenshots/
+            app/build/reports/androidTests/
+          if-no-files-found: warn
