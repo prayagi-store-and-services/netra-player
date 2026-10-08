@@ -213,7 +213,10 @@ private fun PlaySection() {
                 folderFiles = withContext(Dispatchers.IO) { listFolderMedia(context, tree) }
                 folderPage = 0
                 error = if (folderFiles.isEmpty()) "No supported video or MP3 files in this folder." else null
-            } catch (_: Exception) { folderFiles = emptyList(); error = "Folder unavailable. Choose it again." }
+            } catch (e: Exception) {
+                folderFiles = emptyList()
+                error = if (e.message == "Folder too large") "This folder has over 1000 media files. Choose a smaller folder." else "Folder unavailable. Choose it again."
+            }
             finally { folderBusy = false }
         }
     }
