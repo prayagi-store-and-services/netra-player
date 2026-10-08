@@ -201,6 +201,20 @@ private fun PlaySection() {
     var hasVideo by remember { mutableStateOf(true) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
     var choosingTracks by remember { mutableStateOf(false) }
+    val folderScope = rememberCoroutineScope()
+    var folderFiles by remember { mutableStateOf<List<FolderMedia>>(emptyList()) }
+    var folderBusy by remember { mutableStateOf(false) }
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree != null) folderScope.launch {
+            folderBusy = true
+            try {
+                context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                folderFiles = withContext(Dispatchers.IO) { listFolderMedia(context, tree) }
+                error = if (folderFiles.isEmpty()) "No supported video or MP3 files in this folder." else null
+            } catch (_: Exception) { folderFiles = emptyList(); error = "Folder unavailable. Choose it again." }
+            finally { folderBusy = false }
+        }
+    }
     val full by playerFullscreen
     fun setFull(on: Boolean) {
         playerFullscreen.value = on
@@ -245,6 +259,11 @@ private fun PlaySection() {
             }
         }
         val listener = object : androidx.media3.common.Player.Listener {
+            override fun onMediaItemTransition(item: MediaItem?, reason: Int) {
+                title = item?.mediaMetadata?.title?.toString()
+                currentUri = item?.mediaId?.takeIf { it.isNotEmpty() }
+                error = null
+            }
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = playbackErrorMessage(e.errorCode) }
             override fun onTracksChanged(updated: androidx.media3.common.Tracks) {
                 tracks = updated
@@ -287,6 +306,29 @@ private fun PlaySection() {
                     Text(title ?: "", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                 }
             }
+        }
+    }
+    if (!full) {
+        OutlinedButton(onClick = {
+            try { folderPicker.launch(null) }
+            catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
+        }, enabled = !folderBusy) { Text(if (folderBusy) "Reading folder..." else "Open folder") }
+        if (player.mediaItemCount > 1) {
+            Text("Queue: ${player.currentMediaItemIndex + 1} of ${player.mediaItemCount}")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(enabled = player.hasPreviousMediaItem(), onClick = { player.seekToPreviousMediaItem() }) { Text("Previous") }
+                OutlinedButton(enabled = player.hasNextMediaItem(), onClick = { player.seekToNextMediaItem() }) { Text("Next") }
+            }
+        }
+        folderFiles.forEachIndexed { index, file ->
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                player.setMediaItems(folderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
+                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(f.name).build()).build() }, index, 0L)
+                title = file.name
+                currentUri = file.uri.toString()
+                player.prepare()
+                player.playWhenReady = true
+            }) { Text(file.name, maxLines = 2) }
         }
     }
     if (full && currentUri != null) {
