@@ -76,6 +76,7 @@ jobs:
             mkdir -p app/build/device-screenshots
             adb pull /data/local/tmp/player-home.png app/build/device-screenshots/home.png
             adb pull /data/local/tmp/player-tracks.png app/build/device-screenshots/tracks.png
+            adb pull /data/local/tmp/player-background.png app/build/device-screenshots/background.png
       - name: Upload device evidence
         if: always()
         uses: actions/upload-artifact@v4
