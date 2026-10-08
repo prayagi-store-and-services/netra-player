@@ -52,6 +52,7 @@ class FolderSubtitleTest {
             node("Queue: 1 of 2")
             click("Open .srt subtitles")
             click("caption.srt")
+            shell("input swipe 400 1100 400 500 450")
             node("LOCAL SUBTITLE CHECK")
             capture("subtitle")
         }
