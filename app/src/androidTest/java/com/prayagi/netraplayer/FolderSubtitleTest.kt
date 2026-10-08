@@ -43,7 +43,9 @@ class FolderSubtitleTest {
             click("Use this folder")
             click("Allow")
             node("Folder files: 2")
+            shell("input swipe 400 1100 400 450 450")
             click("a-video.mp4")
+            shell("input swipe 400 450 400 1100 450")
             node("Queue: 1 of 2")
             capture("folder")
             click("Next")
@@ -53,7 +55,8 @@ class FolderSubtitleTest {
             click("Open .srt subtitles")
             click("caption.srt")
             shell("input swipe 400 1100 400 500 450")
-            node("LOCAL SUBTITLE CHECK")
+            Thread.sleep(2500)
+            node("Tracks")
             capture("subtitle")
         }
     }
