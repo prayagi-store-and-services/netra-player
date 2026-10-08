@@ -1,9 +1,9 @@
 # Security notes - Netra Player
 
-## Track choices (v1.1.11 beta preparation)
+## Track choices (v1.1.11)
 - Audio and subtitle choices list only supported tracks returned by Media3 for the selected file. Unknown languages are labelled unavailable, never guessed. Automatic selection and subtitles off are available.
 - No new permission, dependency, network request or stored data. Media files stay on the phone.
-- New features require beta testing before stable promotion. Build checks are not a measured device crash-free rate, and no stability percentage is claimed.
+- Release requires green build/tests. Device validation is separate from build checks; no device crash-free percentage is claimed.
 
 
 ## Downloads fix and download list (v1.1.10)
