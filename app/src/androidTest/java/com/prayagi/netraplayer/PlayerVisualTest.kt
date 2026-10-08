@@ -18,6 +18,9 @@ import java.io.File
 class PlayerVisualTest {
     @Test fun homeAndTrackDialog() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(
+            instrumentation.uiAutomation.executeShellCommand("pm grant com.prayagi.netraplayer android.permission.POST_NOTIFICATIONS")
+        ).use { it.readBytes() }
         val context = instrumentation.targetContext
         val screenshots = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
