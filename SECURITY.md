@@ -1,5 +1,12 @@
 # Security notes - Netra Player
 
+## Background audio (v1.1.12)
+- Playback lives in an Android MediaSessionService. Locking the screen/backgrounding disables the video track while audio keeps playing. Media3 supplies media controls in the notification. Audio focus is respected; unplugging headphones pauses playback.
+- New library: androidx.media3:media3-session 1.11.1. New normal permissions: FOREGROUND_SERVICE and FOREGROUND_SERVICE_MEDIA_PLAYBACK. Existing notification permission is explained in Settings.
+- The session accepts this app and Android-trusted media controllers, not arbitrary apps. No file content is uploaded and no new remote endpoint is added.
+- Service stops/release behaviour follows Media3 when playback is no longer ongoing. Device audio/notification behaviour must be checked separately from compile/unit checks.
+
+
 ## Track choices (v1.1.11)
 - Audio and subtitle choices list only supported tracks returned by Media3 for the selected file. Unknown languages are labelled unavailable, never guessed. Automatic selection and subtitles off are available.
 - No new permission, dependency, network request or stored data. Media files stay on the phone.
