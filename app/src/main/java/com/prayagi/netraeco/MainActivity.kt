@@ -101,7 +101,10 @@ fun NetraTheme(content: @Composable () -> Unit) {
         background = Color(0xFFF3F7F6), surface = Color.White, onSurface = Color(0xFF16201E),
         surfaceVariant = Color(0xFFE0EEEB)
     )
-    MaterialTheme(colorScheme = colors, content = content)
+    MaterialTheme(colorScheme = colors) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides colors.onBackground, content = content)
+    }
 }
 
 /** True while the video fills the whole screen (header, footer and banner are hidden). */
@@ -198,7 +201,7 @@ private fun PlaySection() {
     var title by remember { mutableStateOf(player.mediaMetadata.title?.toString()) }
     var error by remember { mutableStateOf<String?>(null) }
     var currentUri by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }) }
-    var hasVideo by remember { mutableStateOf(true) }
+    var hasVideo by remember { mutableStateOf(player.currentTracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
     var choosingTracks by remember { mutableStateOf(false) }
     val full by playerFullscreen
