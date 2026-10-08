@@ -306,6 +306,10 @@ private fun PlaySection() {
                 hasVideo = updated.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)
             }
         }
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, false).build()
+        }
         lifecycle.addObserver(observer)
         player.addListener(listener)
         onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); if (playerFullscreen.value) { playerFullscreen.value = false } }
