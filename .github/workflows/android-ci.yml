@@ -72,14 +72,18 @@ jobs:
           arch: x86_64
           profile: pixel_2
           script: |
-            gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace
+            test_status=0
+            gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace || test_status=$?
             mkdir -p app/build/device-screenshots
-            adb pull /data/local/tmp/player-home.png app/build/device-screenshots/home.png
-            adb pull /data/local/tmp/player-tracks.png app/build/device-screenshots/tracks.png
-            adb pull /data/local/tmp/player-background.png app/build/device-screenshots/background.png
-            adb pull /data/local/tmp/player-loaded.png app/build/device-screenshots/loaded.png
-            adb pull /data/local/tmp/player-dark.png app/build/device-screenshots/dark.png
-            adb pull /data/local/tmp/player-fullscreen.png app/build/device-screenshots/fullscreen.png
+            adb pull /data/local/tmp/player-home.png app/build/device-screenshots/home.png || true
+            adb pull /data/local/tmp/player-tracks.png app/build/device-screenshots/tracks.png || true
+            adb pull /data/local/tmp/player-background.png app/build/device-screenshots/background.png || true
+            adb pull /data/local/tmp/player-loaded.png app/build/device-screenshots/loaded.png || true
+            adb pull /data/local/tmp/player-dark.png app/build/device-screenshots/dark.png || true
+            adb pull /data/local/tmp/player-fullscreen.png app/build/device-screenshots/fullscreen.png || true
+            adb pull /data/local/tmp/player-failure.png app/build/device-screenshots/failure.png || true
+            adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/failure-ui.txt app/build/device-screenshots/failure-ui.txt || true
+            exit $test_status
       - name: Upload device evidence
         if: always()
         uses: actions/upload-artifact@v4
