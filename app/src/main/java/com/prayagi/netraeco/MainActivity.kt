@@ -215,6 +215,34 @@ private fun PlaySection() {
             finally { folderBusy = false }
         }
     }
+    val subtitlePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { subtitle ->
+        if (subtitle != null) {
+            val name = displayName(context, subtitle)
+            if (!name.endsWith(".srt", ignoreCase = true)) {
+                error = "Choose an .srt subtitle file."
+            } else if (player.currentMediaItem == null) {
+                error = "Open a video first."
+            } else {
+                try {
+                    context.contentResolver.takePersistableUriPermission(subtitle, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    val item = player.currentMediaItem!!
+                    val position = player.currentPosition
+                    val playing = player.playWhenReady
+                    val config = MediaItem.SubtitleConfiguration.Builder(subtitle)
+                        .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_SUBRIP)
+                        .setLabel(name).setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT).build()
+                    player.replaceMediaItem(player.currentMediaItemIndex, item.buildUpon().setUri(item.mediaId)
+                        .setSubtitleConfigurations(listOf(config)).build())
+                    player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                        .clearOverridesOfType(androidx.media3.common.C.TRACK_TYPE_TEXT)
+                        .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false).build()
+                    player.seekTo(position)
+                    player.playWhenReady = playing
+                    error = null
+                } catch (_: Exception) { error = "Subtitle file unavailable. Pick it again." }
+            }
+        }
+    }
     val full by playerFullscreen
     fun setFull(on: Boolean) {
         playerFullscreen.value = on
@@ -320,6 +348,10 @@ private fun PlaySection() {
                 OutlinedButton(enabled = player.hasNextMediaItem(), onClick = { player.seekToNextMediaItem() }) { Text("Next") }
             }
         }
+        OutlinedButton(enabled = currentUri != null, onClick = {
+            try { subtitlePicker.launch(arrayOf("application/x-subrip", "text/plain", "application/octet-stream")) }
+            catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
+        }) { Text("Open .srt subtitles") }
         folderFiles.forEachIndexed { index, file ->
             OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
                 player.setMediaItems(folderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
