@@ -38,8 +38,7 @@ class FolderQueueTest {
         shell("cmd statusbar collapse")
         ActivityScenario.launch(MainActivity::class.java).use {
             click("Open folder")
-            click("Show roots")
-            click("Downloads")
+            click("Download")
             click("PlayerFixture")
             click("Use this folder")
             click("Allow")
