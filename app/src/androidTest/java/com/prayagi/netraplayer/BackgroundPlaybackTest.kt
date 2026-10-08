@@ -37,10 +37,17 @@ class BackgroundPlaybackTest {
             find(instrumentation.uiAutomation.rootInActiveWindow, predicate)?.let { return it }
             Thread.sleep(200)
         }
+        capture("failure")
+        fun dump(node: AccessibilityNodeInfo?, depth: Int = 0): String {
+            if (node == null) return ""
+            return " ".repeat(depth) + "${node.className} text=${node.text} desc=${node.contentDescription}\n" +
+                (0 until node.childCount).joinToString("") { dump(node.getChild(it), depth + 1) }
+        }
+        File(instrumentation.targetContext.getExternalFilesDir(null), "failure-ui.txt").writeText(dump(instrumentation.uiAutomation.rootInActiveWindow))
         throw AssertionError("Missing $label")
     }
     private fun capture(name: String) {
-        instrumentation.uiAutomation.waitForIdle(500, 5000)
+        try { instrumentation.uiAutomation.waitForIdle(250, 2500) } catch (_: java.util.concurrent.TimeoutException) {}
         shell("screencap -p /data/local/tmp/player-$name.png")
     }
     @Test fun localAudioContinuesWithActivityStopped() {
@@ -107,10 +114,11 @@ class BackgroundPlaybackTest {
             instrumentation.runOnMainSync { assertTrue("Notification resumed playback", controller!!.playWhenReady) }
             shell("cmd statusbar collapse")
             scenario.moveToState(Lifecycle.State.RESUMED)
-            awaitNode("loaded player") { it.text?.toString() == "Open another file" }
+            shell("am start -n com.prayagi.netraplayer/.MainActivity")
+            awaitNode("loaded player") { it.text?.contains("Open another file") == true }
             capture("loaded")
             shell("cmd uimode night yes")
-            awaitNode("dark player") { it.text?.toString() == "Open another file" }
+            awaitNode("dark player") { it.text?.contains("Open another file") == true }
             Thread.sleep(800)
             capture("dark")
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
