@@ -368,7 +368,7 @@ private fun AboutSection() {
 
 /** Uses only the supported tracks reported by the open file. No invented languages. */
 @Composable
-private fun TrackChoiceDialog(
+internal fun TrackChoiceDialog(
     player: androidx.media3.common.Player,
     tracks: androidx.media3.common.Tracks,
     onClose: () -> Unit
