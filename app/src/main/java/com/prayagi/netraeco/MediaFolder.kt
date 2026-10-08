@@ -19,6 +19,7 @@ internal fun listFolderMedia(context: Context, tree: Uri): List<FolderMedia> {
             val name = cursor.getString(1) ?: "Selected file"
             val mime = cursor.getString(2)
             if (isVideoOrMp3(mime, name)) {
+                if (result.size >= 1000) throw java.io.IOException("Folder too large")
                 result += FolderMedia(DocumentsContract.buildDocumentUriUsingTree(tree, cursor.getString(0)), name)
             }
         }
