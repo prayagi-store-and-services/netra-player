@@ -74,7 +74,8 @@ jobs:
           script: |
             gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace
             mkdir -p app/build/device-screenshots
-            adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/screenshots/. app/build/device-screenshots/
+            adb pull /data/local/tmp/player-home.png app/build/device-screenshots/home.png
+            adb pull /data/local/tmp/player-tracks.png app/build/device-screenshots/tracks.png
       - name: Upload device evidence
         if: always()
         uses: actions/upload-artifact@v4
