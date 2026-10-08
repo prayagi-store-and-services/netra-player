@@ -77,6 +77,13 @@ class BackgroundPlaybackTest {
             Thread.sleep(600)
             android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
                 "screencap -p /data/local/tmp/player-background.png")).use { it.readBytes() }
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            instrumentation.waitForIdleSync()
+            Thread.sleep(700)
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
+                "cmd statusbar collapse")).use { it.readBytes() }
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
+                "screencap -p /data/local/tmp/player-loaded.png")).use { it.readBytes() }
             instrumentation.runOnMainSync { controller!!.pause(); controller!!.release() }
         }
         wav.delete()
