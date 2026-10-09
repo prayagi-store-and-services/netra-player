@@ -242,8 +242,18 @@ private fun PlaySection() {
                     val config = MediaItem.SubtitleConfiguration.Builder(subtitle)
                         .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_SUBRIP)
                         .setLabel(name).setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT).build()
-                    player.replaceMediaItem(player.currentMediaItemIndex, item.buildUpon().setUri(item.mediaId)
-                        .setSubtitleConfigurations(listOf(config)).build())
+                    val index = player.currentMediaItemIndex
+                    val updated = item.buildUpon().setUri(item.mediaId)
+                        .setSubtitleConfigurations(listOf(config)).build()
+                    // A same-URI replace can retain the old prepared source. Rebuild the queue
+                    // so the side-loaded text source is created, keeping the selected item/time.
+                    val queue = (0 until player.mediaItemCount).map { i ->
+                        if (i == index) updated else player.getMediaItemAt(i).let { existing ->
+                            existing.buildUpon().setUri(existing.mediaId).build()
+                        }
+                    }
+                    player.setMediaItems(queue, index, position)
+                    player.prepare()
                     player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
                         .clearOverridesOfType(androidx.media3.common.C.TRACK_TYPE_TEXT)
                         .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false).build()
