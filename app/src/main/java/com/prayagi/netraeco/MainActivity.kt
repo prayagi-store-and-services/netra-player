@@ -310,7 +310,7 @@ private fun PlaySection() {
     if (full && currentUri != null) {
         playerView(Modifier.fillMaxWidth().height(screenH.dp))
     } else if (currentUri == null) {
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("Plays on this phone only. Nothing is uploaded. Video and MP3 files only.", style = MaterialTheme.typography.bodySmall)
@@ -354,7 +354,7 @@ private fun UpdateSection() {
     var message by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<String?>(null) }
     var release by remember { mutableStateOf<LatestRelease?>(null) }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Updates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
@@ -389,7 +389,7 @@ private fun AboutSection() {
     val context = LocalContext.current
     var usage by remember { mutableStateOf(UsagePing.isEnabled(context)) }
     val version = remember { Net.installed(context, context.packageName)?.second ?: "Unavailable" }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Netra Player", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text("Version $version. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
