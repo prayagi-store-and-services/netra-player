@@ -86,3 +86,9 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 - Full screen hides the header, footer and banner, turns the phone to landscape and hides the system bars (swipe to see them). Back or the full-screen button leaves full screen. Playback continues through the turn.
 - An MP3 shows "Audio" and the file name in the player area. A file with no video track is detected from the file itself, not guessed.
 - No new permission, library or network call. The activity now handles screen turns itself (configChanges) so playback is not restarted when the phone turns.
+
+## Update input hardening (version 1.1.12)
+- Notification-triggered downloads use a non-exported activity reached by the app's immutable PendingIntent. The exported launcher ignores update extras from other apps.
+- Update metadata is limited to 1 MiB while reading, not after allocating the complete response. Three-part and four-part numeric release tags are accepted; path separators and extra components are refused.
+- Shared Firestore rules, server rate limits and FormSubmit controls require separate server evidence. Local once-per-day counter preferences are not a server security control.
+- Dependency vulnerability alerts were inactive at audit time. No claim of zero vulnerable dependencies is made from that state.
