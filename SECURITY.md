@@ -46,7 +46,7 @@ The header is the Netra standard: 56 dp, fixed, only the app name, the installed
 - The app also installs on Android TV (leanback launcher, no touchscreen needed). This adds no permission. It is built and unit-tested in CI but not yet tried on a real TV by us.
 
 ## Update safety
-- The updater only accepts releases from the prayagi-store-and-services organization, a valid vX.Y.Z tag and a 64-character sha256, and checks the downloaded size.
+- The updater only accepts releases from the prayagi-store-and-services organization, a valid three- or four-part numeric tag and a 64-character sha256, and checks the downloaded size.
 - Installer files are deleted after the update is installed or cancelled.
 
 ## Dependencies
@@ -92,3 +92,8 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 - The About screen distinguishes offline media playback from network-based updates, optional usage counts and manually submitted crash reports.
 - The existing roadmap URL is read only when its About card is shown. Requests contain no local media, file URI, account or device identifier. Network services still receive ordinary connection metadata.
 - Crash reports remain manual, preview-first, with sanitized class/code-location traces and the disclosed phone model/app/Android versions. No broader security-fix claim is made for this patch.
+## Update input hardening (version 1.1.12)
+- Notification-triggered downloads use a non-exported activity reached by the app's immutable PendingIntent. The exported launcher ignores update extras from other apps.
+- Update metadata is limited to 1 MiB while reading, not after allocating the complete response. Three-part and four-part numeric release tags are accepted; path separators and extra components are refused.
+- Shared Firestore rules, server rate limits and FormSubmit controls require separate server evidence. Local once-per-day counter preferences are not a server security control.
+- Dependency graph was enabled with owner approval after the audit found alerts inactive. The initial alert page showed zero open alerts, but indexing and transitive dependency coverage remain unverified. No claim of zero vulnerable dependencies is made.
