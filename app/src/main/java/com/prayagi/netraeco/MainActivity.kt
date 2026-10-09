@@ -63,7 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         UpdateAlert.handle(this, intent)
@@ -458,3 +458,6 @@ internal fun trackChoiceLabel(label: String?, language: String?, number: Int): S
         else -> "Track $number (language unavailable)"
     }
 }
+
+/** Only the app-owned notification PendingIntent can open this non-exported entry. */
+class UpdateEntryActivity : MainActivity()
