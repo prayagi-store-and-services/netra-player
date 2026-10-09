@@ -86,20 +86,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private val Teal = Color(0xFF00796B)
-private val TealDark = Color(0xFF004D40)
+private val Teal = Color(0xFF092A3F)
+private val TealDark = Color(0xFF04101E)
 
 @Composable
 fun NetraTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val colors = if (dark) darkColorScheme(
-        primary = Color(0xFF4DB6AC), onPrimary = Color(0xFF00201C),
-        background = Color(0xFF101414), surface = Color(0xFF182020), onSurface = Color(0xFFE0E6E4),
-        surfaceVariant = Color(0xFF22302E)
-    ) else lightColorScheme(
-        primary = Teal, onPrimary = Color.White,
-        background = Color(0xFFF3F7F6), surface = Color.White, onSurface = Color(0xFF16201E),
-        surfaceVariant = Color(0xFFE0EEEB)
+    val colors = darkColorScheme(
+        primary = Color(0xFF29DDE0), onPrimary = Color(0xFF002A34),
+        secondary = Color(0xFF80E7EB), onSecondary = Color(0xFF002A34),
+        background = Color(0xFF04101E), onBackground = Color(0xFFE8F6FA),
+        surface = Color(0xFF0A2033), onSurface = Color(0xFFE8F6FA),
+        surfaceVariant = Color(0xFF0E2D43), onSurfaceVariant = Color(0xFFB5CCD8),
+        outline = Color(0xFF284B61)
     )
     MaterialTheme(colorScheme = colors) {
         androidx.compose.runtime.CompositionLocalProvider(
@@ -118,18 +116,18 @@ fun PlayerScreen() {
     val full by playerFullscreen
     val isFull = full && section == Section.Play
     Column(Modifier.fillMaxSize().background(if (isFull) Color.Black else MaterialTheme.colorScheme.background)) {
-        if (!isFull) Header()
+        if (!isFull) { Header(); Footer(section) { section = it } }
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            Column(Modifier.fillMaxSize().then(if (isFull) Modifier else Modifier.verticalScroll(rememberScrollState()).padding(16.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.fillMaxSize().navigationBarsPadding().then(if (isFull) Modifier else Modifier.verticalScroll(rememberScrollState()).padding(16.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
                 when (section) {
                     Section.Play -> PlaySection()
                     Section.Update -> { UpdateSection(); DownloadManagerCard(); CrashReportCard(); PermissionsCard(playerPermissions()) }
-                    Section.About -> AboutSection()
+                    Section.About -> { AboutSection(); PlayerRoadmapCard() }
                 }
             }
         }
-        if (!isFull) Footer(section) { section = it }
+
     }
 }
 
@@ -138,10 +136,11 @@ private fun Header() {
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
-    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().height(56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().height(82.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
         Column {
             val version = remember { Net.installed(context, context.packageName)?.second?.ifBlank { null } ?: "Unavailable" }
-            Text("Netra Player  v$version", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text("▶  Netra Player  v$version", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text("Play local. Stay private. No login.", fontSize = 12.sp, color = Color(0xFF80E7EB))
             Text(HeaderText.date(now) + "   " + HeaderText.clock(now), fontSize = 12.sp, maxLines = 1, color = Color(0xFFD0ECE8))
         }
     }
@@ -150,12 +149,12 @@ private fun Header() {
 @Composable
 private fun Footer(current: Section, onPick: (Section) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).navigationBarsPadding().padding(8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Section.values().forEach { s ->
-            if (s == current) Button(onClick = { onPick(s) }) { Text(s.label) }
-            else OutlinedButton(onClick = { onPick(s) }) { Text(s.label) }
+            if (s == current) Button(modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp), onClick = { onPick(s) }) { Text(s.label) }
+            else OutlinedButton(modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp), onClick = { onPick(s) }) { Text(s.label) }
         }
     }
 }
@@ -439,7 +438,7 @@ private fun AboutSection() {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Netra Player", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Version $version. Video and music player by Prayagi Team. Everything stays on this device.", style = MaterialTheme.typography.bodyMedium)
+            Text("Version $version. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
                     Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -448,7 +447,7 @@ private fun AboutSection() {
                 Switch(checked = usage, onCheckedChange = { usage = it; UsagePing.setEnabled(context, it) })
             }
             Spacer(Modifier.height(2.dp))
-            Text("What is coming next is listed on the Netra website.", style = MaterialTheme.typography.bodySmall)
+            Text("Local playback works offline. Updates and optional reports or usage counts use internet.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
