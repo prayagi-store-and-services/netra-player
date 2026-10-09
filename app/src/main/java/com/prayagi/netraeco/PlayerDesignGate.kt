@@ -17,6 +17,14 @@ internal val LocalPlayerDesignClock = staticCompositionLocalOf<() -> LocalDateTi
 internal fun rememberPlayerDesign(): State<Boolean> {
     val clock = LocalPlayerDesignClock.current
     val enabled = remember { mutableStateOf(PlayerDesignGate.enabled(clock())) }
+    val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, clock) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) enabled.value = PlayerDesignGate.enabled(clock())
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(clock) {
         while (true) {
             enabled.value = PlayerDesignGate.enabled(clock())
@@ -24,4 +32,13 @@ internal fun rememberPlayerDesign(): State<Boolean> {
         }
     }
     return enabled
+}
+
+@Composable
+internal fun playerCardColors(): androidx.compose.material3.CardColors {
+    val active by rememberPlayerDesign()
+    return if (active) androidx.compose.material3.CardDefaults.cardColors(
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+    ) else androidx.compose.material3.CardDefaults.cardColors()
 }
