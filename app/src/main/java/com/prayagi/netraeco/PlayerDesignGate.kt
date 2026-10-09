@@ -10,12 +10,16 @@ internal object PlayerDesignGate {
     fun enabled(now: LocalDateTime): Boolean = !now.isBefore(activation)
 }
 
+/** Tests supply a clock through composition only; app entry points always use device time. */
+internal val LocalPlayerDesignClock = staticCompositionLocalOf<() -> LocalDateTime> { { LocalDateTime.now() } }
+
 @Composable
 internal fun rememberPlayerDesign(): State<Boolean> {
-    val enabled = remember { mutableStateOf(PlayerDesignGate.enabled(LocalDateTime.now())) }
-    LaunchedEffect(Unit) {
+    val clock = LocalPlayerDesignClock.current
+    val enabled = remember { mutableStateOf(PlayerDesignGate.enabled(clock())) }
+    LaunchedEffect(clock) {
         while (true) {
-            enabled.value = PlayerDesignGate.enabled(LocalDateTime.now())
+            enabled.value = PlayerDesignGate.enabled(clock())
             delay(1000)
         }
     }
