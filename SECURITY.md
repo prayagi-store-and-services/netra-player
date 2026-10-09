@@ -92,3 +92,8 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 - Update metadata is limited to 1 MiB while reading, not after allocating the complete response. Three-part and four-part numeric release tags are accepted; path separators and extra components are refused.
 - Shared Firestore rules, server rate limits and FormSubmit controls require separate server evidence. Local once-per-day counter preferences are not a server security control.
 - Dependency vulnerability alerts were inactive at audit time. No claim of zero vulnerable dependencies is made from that state.
+
+## Explicit HTTPS-only transport policy
+- The manifest explicitly refuses cleartext traffic and loads a network security configuration with system certificate authorities only. User-installed certificate authorities and debug trust overrides are not included.
+- This app policy applies independently of whether a VPN is enabled. It does not encrypt other apps' traffic or provide a device-wide VPN.
+- Device tests assert global and per-host cleartext refusal and the packaged trust-anchor configuration. Existing HTTPS endpoints retain normal certificate/hostname validation. No ADB command is required for normal app use; emulator setup commands are development-only.
