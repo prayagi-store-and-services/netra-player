@@ -66,7 +66,7 @@ fun RoadmapSection(items: List<RoadmapItem>?) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showAll by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp)) {
             Text("Coming soon", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (items == null || items.isEmpty()) {
