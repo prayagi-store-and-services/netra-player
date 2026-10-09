@@ -14,6 +14,8 @@
 
     <application
         android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false"
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"
         android:label="Netra Player"
