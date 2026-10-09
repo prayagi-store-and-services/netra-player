@@ -85,7 +85,7 @@ fun PermissionsCard(items: List<PermItem>, modifier: Modifier = Modifier) {
         lc?.addObserver(obs)
         onDispose { lc?.removeObserver(obs) }
     }
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth(), colors = playerCardColors()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Permissions", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("What the app uses and why. Tap a row to open its Android page.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
