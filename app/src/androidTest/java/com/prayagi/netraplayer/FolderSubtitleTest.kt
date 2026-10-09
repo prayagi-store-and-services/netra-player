@@ -55,9 +55,33 @@ class FolderSubtitleTest {
             click("Open .srt subtitles")
             click("caption.srt")
             shell("input swipe 400 1100 400 500 450")
-            Thread.sleep(2500)
+            var controller: androidx.media3.session.MediaController? = null
+            val connected = java.util.concurrent.CountDownLatch(1)
+            ins.runOnMainSync {
+                val future = androidx.media3.session.MediaController.Builder(ins.targetContext,
+                    androidx.media3.session.SessionToken(ins.targetContext,
+                        android.content.ComponentName(ins.targetContext, PlaybackService::class.java))).buildAsync()
+                future.addListener({ controller = future.get(); connected.countDown() },
+                    androidx.core.content.ContextCompat.getMainExecutor(ins.targetContext))
+            }
+            assertTrue("Diagnostic controller connected", connected.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            var cue = false
+            var diagnostic = ""
+            repeat(40) {
+                ins.runOnMainSync {
+                    val p = controller!!
+                    cue = cue || p.currentCues.cues.any { it.text?.contains("LOCAL SUBTITLE CHECK") == true }
+                    diagnostic = "position=${p.currentPosition} state=${p.playbackState} error=${p.playerError} " +
+                        "tracks=${p.currentTracks.groups.map { it.type to it.isSelected }} " +
+                        "cues=${p.currentCues.cues.map { it.text }} uri=${p.currentMediaItem?.mediaId}"
+                }
+                if (!cue) Thread.sleep(250)
+            }
+            java.io.File(ins.targetContext.getExternalFilesDir(null), "subtitle-diagnostic.txt").writeText(diagnostic)
             node("Tracks")
             capture("subtitle")
+            ins.runOnMainSync { controller!!.release() }
+            assertTrue("SRT cue delivered: $diagnostic", cue)
         }
     }
 }
