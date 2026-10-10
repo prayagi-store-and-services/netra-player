@@ -28,6 +28,17 @@ class PlayerGateVisualTest {
         assertTrue("Clickable $label",n?.performAction(AccessibilityNodeInfo.ACTION_CLICK)==true)
         Thread.sleep(1000)
     }
+    private fun waitForTagline(expected: Boolean) {
+        val end = System.currentTimeMillis() + 10000
+        while (System.currentTimeMillis() < end) {
+            val visible = find(ins.uiAutomation.rootInActiveWindow, "Play local. Stay private. No login.") != null
+            if (visible == expected) return
+            Thread.sleep(200)
+        }
+        shot("gate-failure")
+        shell("uiautomator dump /data/local/tmp/player-gate-failure.xml")
+        assertTrue("Tagline visibility expected $expected", false)
+    }
     private fun shot(name: String) { ins.waitForIdleSync(); Thread.sleep(700);shell("screencap -p /data/local/tmp/player-$name.png") }
     @Test fun midnightFlipAndClockRollback() {
         val time=AtomicReference(LocalDateTime.of(2026,10,10,23,59,59))
@@ -35,19 +46,20 @@ class PlayerGateVisualTest {
             scenario.onActivity { a -> a.setContent { CompositionLocalProvider(LocalPlayerDesignClock provides { time.get() }) { NetraTheme { PlayerScreen() } } } }
             Thread.sleep(1500)
             shot("gate-before")
+            assertTrue("No early greeting",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")==null)
             assertTrue("No early tagline",find(ins.uiAutomation.rootInActiveWindow,"Play local. Stay private. No login.")==null)
             time.set(LocalDateTime.of(2026,10,11,0,0))
-            Thread.sleep(1600)
-            assertTrue("Midnight tagline",find(ins.uiAutomation.rootInActiveWindow,"Play local. Stay private. No login.")!=null)
+            waitForTagline(true)
             shot("gate-after")
+            assertTrue("Oct11 screen greeting",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")!=null)
             click("Update");shot("gate-update")
             click("About");shot("gate-about")
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
             time.set(LocalDateTime.of(2026,10,10,22,0))
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
-            Thread.sleep(1600)
-            assertTrue("Rollback uses current local date",find(ins.uiAutomation.rootInActiveWindow,"Play local. Stay private. No login.")==null)
+            waitForTagline(false)
             shot("gate-rollback")
+            assertTrue("No greeting after rollback",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")==null)
         }
     }
 }
