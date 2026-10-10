@@ -66,6 +66,11 @@ class FolderSubtitleTest {
             val pickerReady = System.currentTimeMillis() + 10000
             while (System.currentTimeMillis() < pickerReady &&
                 ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName) Thread.sleep(200)
+            // A remembered folder title appears before its file rows. Wait for those rows.
+            val rememberedReady = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < rememberedReady &&
+                find(ins.uiAutomation.rootInActiveWindow, "PlayerFixture") != null &&
+                find(ins.uiAutomation.rootInActiveWindow, "a-video.mp4") == null) Thread.sleep(200)
             // The picker may already remember this folder, where Download is a breadcrumb.
             if (find(ins.uiAutomation.rootInActiveWindow, "a-video.mp4") == null) {
                 if (find(ins.uiAutomation.rootInActiveWindow, "PlayerFixture") == null) click("Download")
