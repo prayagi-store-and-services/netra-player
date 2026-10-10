@@ -9,7 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class FolderQueueTest {
+class FolderSubtitleTest {
     private val ins get() = InstrumentationRegistry.getInstrumentation()
     private fun shell(cmd: String) = android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand(cmd)).use { it.readBytes() }
     private fun find(n: AccessibilityNodeInfo?, text: String): AccessibilityNodeInfo? {
@@ -47,7 +47,7 @@ class FolderQueueTest {
         assertTrue("Clickable $text", clicked)
     }
     private fun capture(name: String) { Thread.sleep(700); shell("screencap -p /data/local/tmp/player-$name.png") }
-    @Test fun chosenFolderQueue() {
+    @Test fun chosenFolderQueueAndLocalSubtitle() {
         shell("cmd statusbar collapse")
         // Each test starts with an empty service queue, even after a preceding failure.
         var reset: androidx.media3.session.MediaController? = null
@@ -66,6 +66,11 @@ class FolderQueueTest {
             val pickerReady = System.currentTimeMillis() + 10000
             while (System.currentTimeMillis() < pickerReady &&
                 ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName) Thread.sleep(200)
+            // A remembered folder title appears before its file rows. Wait for those rows.
+            val rememberedReady = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < rememberedReady &&
+                find(ins.uiAutomation.rootInActiveWindow, "PlayerFixture") != null &&
+                find(ins.uiAutomation.rootInActiveWindow, "a-video.mp4") == null) Thread.sleep(200)
             // The picker may already remember this folder, where Download is a breadcrumb.
             if (find(ins.uiAutomation.rootInActiveWindow, "a-video.mp4") == null) {
                 if (find(ins.uiAutomation.rootInActiveWindow, "PlayerFixture") == null) click("Download")
@@ -75,6 +80,7 @@ class FolderQueueTest {
             click("Allow")
             shell("input swipe 20 1600 20 550 450")
             node("Folder files: 2")
+            shell("input swipe 20 1600 20 550 450")
             click("a-video.mp4")
             repeat(5) {
                 fun top(n: AccessibilityNodeInfo?): Boolean {
@@ -91,7 +97,36 @@ class FolderQueueTest {
             node("Queue: 2 of 2")
             click("Previous")
             node("Queue: 1 of 2")
-
+            click("Open .srt subtitles")
+            click("caption.srt")
+            shell("input swipe 400 1100 400 500 450")
+            var controller: androidx.media3.session.MediaController? = null
+            val connected = java.util.concurrent.CountDownLatch(1)
+            ins.runOnMainSync {
+                val future = androidx.media3.session.MediaController.Builder(ins.targetContext,
+                    androidx.media3.session.SessionToken(ins.targetContext,
+                        android.content.ComponentName(ins.targetContext, PlaybackService::class.java))).buildAsync()
+                future.addListener({ controller = future.get(); connected.countDown() },
+                    androidx.core.content.ContextCompat.getMainExecutor(ins.targetContext))
+            }
+            assertTrue("Diagnostic controller connected", connected.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            var cue = false
+            var diagnostic = ""
+            repeat(40) {
+                ins.runOnMainSync {
+                    val p = controller!!
+                    cue = cue || p.currentCues.cues.any { it.text?.contains("LOCAL SUBTITLE CHECK") == true }
+                    diagnostic = "position=${p.currentPosition} state=${p.playbackState} error=${p.playerError} " +
+                        "tracks=${p.currentTracks.groups.map { it.type to it.isSelected }} " +
+                        "cues=${p.currentCues.cues.map { it.text }} uri=${p.currentMediaItem?.mediaId}"
+                }
+                if (!cue) Thread.sleep(250)
+            }
+            java.io.File(ins.targetContext.getExternalFilesDir(null), "subtitle-diagnostic.txt").writeText(diagnostic)
+            node("Tracks")
+            capture("subtitle")
+            ins.runOnMainSync { controller!!.release() }
+            assertTrue("SRT cue delivered: $diagnostic", cue)
         }
     }
 }

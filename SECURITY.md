@@ -1,5 +1,11 @@
 # Security notes - Netra Player
 
+## User-selected SRT subtitles (v1.1.14)
+- The system file picker opens an .srt file chosen by the user. Name extension is checked, and Media3 parses/renders the local subtitle data. No subtitle search/download server.
+- Read access is kept through the picker grant, no broad storage permission. Adding subtitles preserves the selected media, queue position and play/pause state. Nothing is uploaded.
+- No new library, permission or endpoint. Unsupported or unreadable subtitle content must report the actual playback error.
+
+
 ## Folder list and queue (v1.1.13)
 - Android's system folder picker grants read access only to the chosen folder. No broad storage permission. The app queries direct children off the UI thread and lists video/MP3 only; it does not scan other folders.
 - Tapping a file starts a queue of that folder's supported files. Previous/Next and automatic advance use Media3's existing playlist. File names and content stay on the device.
