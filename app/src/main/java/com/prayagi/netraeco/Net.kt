@@ -184,27 +184,15 @@ object Net {
 
     private fun downloadInternal(context: Context, app: CatalogApp, release: LatestRelease, onProgress: ((Long, Long, Long?) -> Unit)?): File {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-        dir.listFiles()?.filter { it.name.startsWith(app.id + "-") }?.forEach { it.delete() }
         val file = File(dir, "${app.id}-${release.tag}.apk")
+        val partial = File.createTempFile("pending-", ".part", dir)
         val c = open(release.apkUrl)
-        if (c.responseCode != 200) throw IllegalStateException("Download failed (server answered ${c.responseCode}).")
-        val md = MessageDigest.getInstance("SHA-256")
-        var total = 0L
-        val tracker = SpeedTracker()
-        var lastReport = 0L
-        c.inputStream.use { input ->
-            file.outputStream().use { out ->
-                val buf = ByteArray(16384)
-                while (true) {
-                    val n = input.read(buf)
-                    if (n < 0) break
-                    total += n
-                    if (total > release.size) {
-                        file.delete()
-                        throw IllegalStateException("Downloaded file is larger than expected.")
-                    }
-                    md.update(buf, 0, n)
-                    out.write(buf, 0, n)
+        try {
+            if (c.responseCode != 200) throw IllegalStateException("Download failed (server answered ${c.responseCode}).")
+            val tracker = SpeedTracker()
+            var lastReport = 0L
+            c.inputStream.use { input ->
+                ApkIntegrity.copyVerified(input, partial, release.size, release.sha256) { total ->
                     val now = System.currentTimeMillis()
                     tracker.add(now, total)
                     if (onProgress != null && now - lastReport >= 300L) {
@@ -213,13 +201,13 @@ object Net {
                     }
                 }
             }
+            java.nio.file.Files.move(partial.toPath(), file.toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            return file
+        } finally {
+            c.disconnect()
+            partial.delete()
         }
-        val actual = md.digest().joinToString("") { "%02x".format(it) }
-        if (total != release.size || actual != release.sha256) {
-            file.delete()
-            throw IllegalStateException("The downloaded file did not match its checksum, so it was not installed.")
-        }
-        return file
     }
 
     /** Opens the system installer. Android installs only if the app is signed with the same key as the installed one. */
