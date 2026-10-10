@@ -22,7 +22,17 @@ class FolderQueueTest {
         val end = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < end) {
             find(ins.uiAutomation.rootInActiveWindow, text)?.let { return it }
-            Thread.sleep(200)
+            if (ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName &&
+                text !in listOf("Open folder", "Download", "PlayerFixture", "Use this folder", "Allow")) {
+                fun scroll(n: AccessibilityNodeInfo?): Boolean {
+                    if (n == null) return false
+                    if (n.isScrollable && n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+                    for (i in 0 until n.childCount) if (scroll(n.getChild(i))) return true
+                    return false
+                }
+                scroll(ins.uiAutomation.rootInActiveWindow)
+            }
+            Thread.sleep(300)
         }
         shell("screencap -p /data/local/tmp/player-folder-failure.png")
         shell("uiautomator dump /data/local/tmp/player-folder-failure.xml")
@@ -31,7 +41,10 @@ class FolderQueueTest {
     private fun click(text: String) {
         var n: AccessibilityNodeInfo? = node(text)
         while(n != null && !n.isClickable) n = n.parent
-        assertTrue("Clickable $text", n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+        var clicked = n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true
+        if (!clicked) { Thread.sleep(400); n = node(text); while(n != null && !n.isClickable) n = n.parent
+            clicked = n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true }
+        assertTrue("Clickable $text", clicked)
     }
     private fun capture(name: String) { Thread.sleep(700); shell("screencap -p /data/local/tmp/player-$name.png") }
     @Test fun chosenFolderQueue() {
@@ -60,7 +73,15 @@ class FolderQueueTest {
             shell("input swipe 20 1600 20 550 450")
             node("Folder files: 2")
             click("a-video.mp4")
-            shell("input swipe 20 550 20 1600 450")
+            repeat(5) {
+                fun top(n: AccessibilityNodeInfo?): Boolean {
+                    if (n == null) return false
+                    if (n.isScrollable && n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) return true
+                    for (i in 0 until n.childCount) if (top(n.getChild(i))) return true
+                    return false
+                }
+                top(ins.uiAutomation.rootInActiveWindow); Thread.sleep(200)
+            }
             node("Queue: 1 of 2")
             capture("folder")
             click("Next")
