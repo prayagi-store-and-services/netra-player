@@ -6,7 +6,7 @@ import java.util.Locale
 
 /** Availability hints only, not proof of physical location. Nothing is transmitted. */
 internal object RegionPolicy {
-    val BLOCKED_COUNTRIES = setOf("PK", "BD", "AF")
+    val BLOCKED_COUNTRIES = setOf("PK", "BD", "AF", "CN", "KP")
 
     fun blocked(sim: String?, network: String?, locale: String?): Boolean {
         fun normalized(value: String?) = value?.trim()?.uppercase(Locale.ROOT).orEmpty()
