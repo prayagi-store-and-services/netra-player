@@ -46,10 +46,12 @@ class PlayerGateVisualTest {
             scenario.onActivity { a -> a.setContent { CompositionLocalProvider(LocalPlayerDesignClock provides { time.get() }) { NetraTheme { PlayerScreen() } } } }
             Thread.sleep(1500)
             shot("gate-before")
+            assertTrue("No early greeting",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")==null)
             assertTrue("No early tagline",find(ins.uiAutomation.rootInActiveWindow,"Play local. Stay private. No login.")==null)
             time.set(LocalDateTime.of(2026,10,11,0,0))
             waitForTagline(true)
             shot("gate-after")
+            assertTrue("Oct11 screen greeting",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")!=null)
             click("Update");shot("gate-update")
             click("About");shot("gate-about")
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
@@ -57,6 +59,7 @@ class PlayerGateVisualTest {
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
             waitForTagline(false)
             shot("gate-rollback")
+            assertTrue("No greeting after rollback",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")==null)
         }
     }
 }
