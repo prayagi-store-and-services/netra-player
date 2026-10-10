@@ -35,7 +35,16 @@ class BackgroundPlaybackTest {
         val until = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < until) {
             find(instrumentation.uiAutomation.rootInActiveWindow, predicate)?.let { return it }
-            Thread.sleep(200)
+            if (label in listOf("loaded player", "dark player")) {
+                fun scroll(n: AccessibilityNodeInfo?): Boolean {
+                    if (n == null) return false
+                    if (n.isScrollable && n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+                    for (i in 0 until n.childCount) if (scroll(n.getChild(i))) return true
+                    return false
+                }
+                scroll(instrumentation.uiAutomation.rootInActiveWindow)
+            }
+            Thread.sleep(300)
         }
         capture("failure")
         fun dump(node: AccessibilityNodeInfo?, depth: Int = 0): String {
