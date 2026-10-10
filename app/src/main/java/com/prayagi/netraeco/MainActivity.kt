@@ -112,9 +112,12 @@ private val TealDark = Color(0xFF004D40)
 @Composable
 fun NetraTheme(content: @Composable () -> Unit) {
     val redesign by rememberPlayerDesign()
+    val clock = LocalPlayerDesignClock.current
+    var festive by remember { mutableStateOf(clock().toLocalDate() == GreetingPolicy.day) }
+    LaunchedEffect(clock) { while (true) { festive = clock().toLocalDate() == GreetingPolicy.day; delay(1000) } }
     val dark = isSystemInDarkTheme()
     val colors = if (redesign) darkColorScheme(
-        primary = Color(0xFF29DDE0), onPrimary = Color(0xFF002A34),
+        primary = if (festive) Color(0xFFFBBF24) else Color(0xFF29DDE0), onPrimary = Color(0xFF002A34),
         background = Color(0xFF04101E), onBackground = Color(0xFFE8F6FA),
         surface = Color(0xFF0A2033), onSurface = Color(0xFFE8F6FA),
         surfaceVariant = Color(0xFF0E2D43), onSurfaceVariant = Color(0xFFB5CCD8),
@@ -146,7 +149,7 @@ fun PlayerScreen() {
     val full by playerFullscreen
     val isFull = full && section == Section.Play
     Column(Modifier.fillMaxSize().background(if (isFull) Color.Black else MaterialTheme.colorScheme.background)) {
-        if (!isFull) { Header(); if (redesign) Footer(section) { section = it } }
+        if (!isFull) { Header(); NavratriGreeting(); if (redesign) Footer(section) { section = it } }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.fillMaxSize().then(if (isFull) Modifier else Modifier.verticalScroll(rememberScrollState()).padding(16.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
@@ -167,7 +170,7 @@ private fun Header() {
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
-    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(if (redesign) listOf(Color(0xFF092A3F), Color(0xFF04101E)) else listOf(Teal, TealDark))).statusBarsPadding().height(if (redesign) 76.dp else 56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(if (redesign) if (LocalPlayerDesignClock.current().toLocalDate() == GreetingPolicy.day) listOf(Color(0xFF78350F), Color(0xFF451A03)) else listOf(Color(0xFF092A3F), Color(0xFF04101E)) else listOf(Teal, TealDark))).statusBarsPadding().height(if (redesign) 76.dp else 56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
         Column {
             val version = remember { Net.installed(context, context.packageName)?.second?.ifBlank { null } ?: "Unavailable" }
             Text("Netra Player  v$version", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
