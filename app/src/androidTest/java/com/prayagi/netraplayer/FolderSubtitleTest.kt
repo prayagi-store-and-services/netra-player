@@ -36,12 +36,27 @@ class FolderSubtitleTest {
     private fun capture(name: String) { Thread.sleep(700); shell("screencap -p /data/local/tmp/player-$name.png") }
     @Test fun chosenFolderQueueAndLocalSubtitle() {
         shell("cmd statusbar collapse")
+        // Each test starts with an empty service queue, even after a preceding failure.
+        var reset: androidx.media3.session.MediaController? = null
+        val ready = java.util.concurrent.CountDownLatch(1)
+        ins.runOnMainSync {
+            val f = androidx.media3.session.MediaController.Builder(ins.targetContext,
+                androidx.media3.session.SessionToken(ins.targetContext,
+                    android.content.ComponentName(ins.targetContext, PlaybackService::class.java))).buildAsync()
+            f.addListener({ reset = f.get(); ready.countDown() },
+                androidx.core.content.ContextCompat.getMainExecutor(ins.targetContext))
+        }
+        assertTrue("Reset controller connected", ready.await(10, java.util.concurrent.TimeUnit.SECONDS))
+        ins.runOnMainSync { reset!!.stop(); reset!!.clearMediaItems(); reset!!.release(); playerFullscreen.value = false }
         ActivityScenario.launch(MainActivity::class.java).use {
             click("Open folder")
+            // The document picker remembers its last directory. Open roots explicitly.
+            shell("input swipe 1 500 500 500 350")
             click("Download")
             click("PlayerFixture")
             click("Use this folder")
             click("Allow")
+            shell("input swipe 400 1100 400 450 450")
             node("Folder files: 2")
             shell("input swipe 400 1100 400 450 450")
             click("a-video.mp4")
