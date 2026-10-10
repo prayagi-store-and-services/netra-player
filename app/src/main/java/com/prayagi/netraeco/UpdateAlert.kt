@@ -54,7 +54,7 @@ object UpdateAlert {
 
     /** Runs when the notification was tapped: check, download, verify, hand to the installer. */
     fun handle(activity: Activity, intent: Intent?) {
-        if (intent?.getBooleanExtra(EXTRA_AUTO_UPDATE, false) != true) return
+        if (activity !is UpdateEntryActivity || intent?.getBooleanExtra(EXTRA_AUTO_UPDATE, false) != true) return
         intent.removeExtra(EXTRA_AUTO_UPDATE)
         val app = activity.applicationContext
         Toast.makeText(app, "Downloading the update...", Toast.LENGTH_SHORT).show()
@@ -96,7 +96,7 @@ object UpdateAlert {
                     if (BEEP) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW)
             )
         }
-        val launch = c.packageManager.getLaunchIntentForPackage(c.packageName) ?: return
+        val launch = Intent(c, UpdateEntryActivity::class.java)
         launch.putExtra(EXTRA_AUTO_UPDATE, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val open = PendingIntent.getActivity(c, 0, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = NotificationCompat.Builder(c, CHANNEL_ID)

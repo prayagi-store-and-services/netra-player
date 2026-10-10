@@ -63,14 +63,33 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
+    private var regionDenied = false
+
+    private fun denyRegion(): Boolean {
+        if (!RegionPolicy.isBlocked(this)) return false
+        regionDenied = true
+        stopService(android.content.Intent(this, PlaybackService::class.java))
+        setContent {
+            MaterialTheme {
+                Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                    Text("Not available in this region", color = Color.White, modifier = Modifier.padding(24.dp))
+                }
+                LaunchedEffect(Unit) { delay(2500); finishAndRemoveTask() }
+            }
+        }
+        return true
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
+        if (denyRegion()) return
         UpdateAlert.handle(this, intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (denyRegion()) return
         UpdateAlert.start(this)
         CrashReporter.install(this)
         setContent { NetraTheme { PlayerScreen() } }
@@ -78,6 +97,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (regionDenied || denyRegion()) return
         // Delete installer files left from a finished or cancelled update (not while a download runs).
         Thread {
             Net.cleanLeftovers(applicationContext)
@@ -91,8 +111,15 @@ private val TealDark = Color(0xFF004D40)
 
 @Composable
 fun NetraTheme(content: @Composable () -> Unit) {
+    val redesign by rememberPlayerDesign()
     val dark = isSystemInDarkTheme()
-    val colors = if (dark) darkColorScheme(
+    val colors = if (redesign) darkColorScheme(
+        primary = Color(0xFF29DDE0), onPrimary = Color(0xFF002A34),
+        background = Color(0xFF04101E), onBackground = Color(0xFFE8F6FA),
+        surface = Color(0xFF0A2033), onSurface = Color(0xFFE8F6FA),
+        surfaceVariant = Color(0xFF0E2D43), onSurfaceVariant = Color(0xFFB5CCD8),
+        outline = Color(0xFF284B61)
+    ) else if (dark) darkColorScheme(
         primary = Color(0xFF4DB6AC), onPrimary = Color(0xFF00201C),
         background = Color(0xFF101414), surface = Color(0xFF182020), onSurface = Color(0xFFE0E6E4),
         surfaceVariant = Color(0xFF22302E)
@@ -114,34 +141,37 @@ private enum class Section(val label: String) { Play("Play"), Update("Update"), 
 
 @Composable
 fun PlayerScreen() {
+    val redesign by rememberPlayerDesign()
     var section by remember { mutableStateOf(Section.Play) }
     val full by playerFullscreen
     val isFull = full && section == Section.Play
     Column(Modifier.fillMaxSize().background(if (isFull) Color.Black else MaterialTheme.colorScheme.background)) {
-        if (!isFull) Header()
+        if (!isFull) { Header(); if (redesign) Footer(section) { section = it } }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.fillMaxSize().then(if (isFull) Modifier else Modifier.verticalScroll(rememberScrollState()).padding(16.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
                 when (section) {
                     Section.Play -> PlaySection()
                     Section.Update -> { UpdateSection(); DownloadManagerCard(); CrashReportCard(); PermissionsCard(playerPermissions()) }
-                    Section.About -> AboutSection()
+                    Section.About -> { AboutSection(); if (redesign) PlayerRoadmapCard() }
                 }
             }
         }
-        if (!isFull) Footer(section) { section = it }
+        if (!isFull && !redesign) Footer(section) { section = it }
     }
 }
 
 @Composable
 private fun Header() {
+    val redesign by rememberPlayerDesign()
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
-    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Teal, TealDark))).statusBarsPadding().height(56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+    Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(if (redesign) listOf(Color(0xFF092A3F), Color(0xFF04101E)) else listOf(Teal, TealDark))).statusBarsPadding().height(if (redesign) 76.dp else 56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
         Column {
             val version = remember { Net.installed(context, context.packageName)?.second?.ifBlank { null } ?: "Unavailable" }
             Text("Netra Player  v$version", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
+            if (redesign) Text("Play local. Stay private. No login.", fontSize = 12.sp, color = Color(0xFF80E7EB))
             Text(HeaderText.date(now) + "   " + HeaderText.clock(now), fontSize = 12.sp, maxLines = 1, color = Color(0xFFD0ECE8))
         }
     }
@@ -149,8 +179,9 @@ private fun Header() {
 
 @Composable
 private fun Footer(current: Section, onPick: (Section) -> Unit) {
+    val redesign by rememberPlayerDesign()
     Row(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).navigationBarsPadding().padding(8.dp),
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).then(if (redesign) Modifier else Modifier.navigationBarsPadding()).padding(8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         Section.values().forEach { s ->
@@ -337,7 +368,7 @@ private fun PlaySection() {
     if (full && currentUri != null) {
         playerView(Modifier.fillMaxWidth().height(screenH.dp))
     } else if (currentUri == null) {
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("Plays on this phone only. Nothing is uploaded. Video and MP3 files only.", style = MaterialTheme.typography.bodySmall)
@@ -401,7 +432,7 @@ private fun UpdateSection() {
     var message by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<String?>(null) }
     var release by remember { mutableStateOf<LatestRelease?>(null) }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Updates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
@@ -436,10 +467,10 @@ private fun AboutSection() {
     val context = LocalContext.current
     var usage by remember { mutableStateOf(UsagePing.isEnabled(context)) }
     val version = remember { Net.installed(context, context.packageName)?.second ?: "Unavailable" }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Netra Player", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Version $version. Video and music player by Prayagi Team. Everything stays on this device.", style = MaterialTheme.typography.bodyMedium)
+            Text("Version $version. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
                     Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -448,7 +479,7 @@ private fun AboutSection() {
                 Switch(checked = usage, onCheckedChange = { usage = it; UsagePing.setEnabled(context, it) })
             }
             Spacer(Modifier.height(2.dp))
-            Text("What is coming next is listed on the Netra website.", style = MaterialTheme.typography.bodySmall)
+            Text("Local playback works offline. Updates and optional reports or usage counts use internet.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -516,3 +547,6 @@ internal fun trackChoiceLabel(label: String?, language: String?, number: Int): S
         else -> "Track $number (language unavailable)"
     }
 }
+
+/** Only the app-owned notification PendingIntent can open this non-exported entry. */
+class UpdateEntryActivity : MainActivity()

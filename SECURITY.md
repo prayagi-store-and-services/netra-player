@@ -92,3 +92,19 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 - Full screen hides the header, footer and banner, turns the phone to landscape and hides the system bars (swipe to see them). Back or the full-screen button leaves full screen. Playback continues through the turn.
 - An MP3 shows "Audio" and the file name in the player area. A file with no video track is detected from the file itself, not guessed.
 - No new permission, library or network call. The activity now handles screen turns itself (configChanges) so playback is not restarted when the phone turns.
+
+## Version 1.1.12.1
+- The local calendar state is refreshed when the activity resumes. No server flag, device identifier, new app permission or background alarm is used for that state.
+- The About screen distinguishes offline media playback from network-based updates, optional usage counts and manually submitted crash reports.
+- The existing roadmap URL is read only when its About card is shown. Requests contain no local media, file URI, account or device identifier. Network services still receive ordinary connection metadata.
+- Crash reports remain manual, preview-first, with sanitized class/code-location traces and the disclosed phone model/app/Android versions. No broader security-fix claim is made for this patch.
+## Update input hardening (version 1.1.12)
+- Notification-triggered downloads use a non-exported activity reached by the app's immutable PendingIntent. The exported launcher ignores update extras from other apps.
+- Update metadata is limited to 1 MiB while reading, not after allocating the complete response. Three-part and four-part numeric release tags are accepted; path separators and extra components are refused.
+- Shared Firestore rules, server rate limits and FormSubmit controls require separate server evidence. Local once-per-day counter preferences are not a server security control.
+- Dependency vulnerability alerts were inactive at audit time. No claim of zero vulnerable dependencies is made from that state.
+
+## Explicit HTTPS-only transport policy
+- The manifest explicitly refuses cleartext traffic and loads a network security configuration with system certificate authorities only. User-installed certificate authorities and debug trust overrides are not included.
+- This app policy applies independently of whether a VPN is enabled. It does not encrypt other apps' traffic or provide a device-wide VPN.
+- Device tests assert global and per-host cleartext refusal and the packaged trust-anchor configuration. Existing HTTPS endpoints retain normal certificate/hostname validation. No ADB command is required for normal app use; emulator setup commands are development-only.
