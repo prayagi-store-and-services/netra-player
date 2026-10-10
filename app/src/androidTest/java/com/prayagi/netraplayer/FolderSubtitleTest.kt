@@ -50,17 +50,18 @@ class FolderSubtitleTest {
         ins.runOnMainSync { reset!!.stop(); reset!!.clearMediaItems(); reset!!.release(); playerFullscreen.value = false }
         ActivityScenario.launch(MainActivity::class.java).use {
             click("Open folder")
-            // The document picker remembers its last directory. Open roots explicitly.
-            shell("input swipe 1 500 500 500 350")
+            val pickerReady = System.currentTimeMillis() + 10000
+            while (System.currentTimeMillis() < pickerReady &&
+                ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName) Thread.sleep(200)
             click("Download")
             click("PlayerFixture")
             click("Use this folder")
             click("Allow")
-            shell("input swipe 400 1100 400 450 450")
+            shell("input swipe 20 1600 20 550 450")
             node("Folder files: 2")
-            shell("input swipe 400 1100 400 450 450")
+            shell("input swipe 20 1600 20 550 450")
             click("a-video.mp4")
-            shell("input swipe 400 450 400 1100 450")
+            shell("input swipe 20 550 20 1600 450")
             node("Queue: 1 of 2")
             capture("folder")
             click("Next")
