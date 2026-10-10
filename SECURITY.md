@@ -87,6 +87,11 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 - An MP3 shows "Audio" and the file name in the player area. A file with no video track is detected from the file itself, not guessed.
 - No new permission, library or network call. The activity now handles screen turns itself (configChanges) so playback is not restarted when the phone turns.
 
+## Version 1.1.12.1
+- The local calendar state is refreshed when the activity resumes. No server flag, device identifier, new app permission or background alarm is used for that state.
+- The About screen distinguishes offline media playback from network-based updates, optional usage counts and manually submitted crash reports.
+- The existing roadmap URL is read only when its About card is shown. Requests contain no local media, file URI, account or device identifier. Network services still receive ordinary connection metadata.
+- Crash reports remain manual, preview-first, with sanitized class/code-location traces and the disclosed phone model/app/Android versions. No broader security-fix claim is made for this patch.
 ## Update input hardening (version 1.1.12)
 - Notification-triggered downloads use a non-exported activity reached by the app's immutable PendingIntent. The exported launcher ignores update extras from other apps.
 - Update metadata is limited to 1 MiB while reading, not after allocating the complete response. Three-part and four-part numeric release tags are accepted; path separators and extra components are refused.

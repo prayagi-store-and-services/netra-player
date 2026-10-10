@@ -36,7 +36,7 @@ fun CrashReportCard(modifier: Modifier = Modifier) {
     var preview by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth(), colors = playerCardColors()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Crash report", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Text("If the app crashed, you can send the last crash to the developer. You see the exact text before anything is sent. It holds no name, email, location or files.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
