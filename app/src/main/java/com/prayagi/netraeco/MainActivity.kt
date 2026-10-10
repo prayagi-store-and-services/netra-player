@@ -63,7 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         UpdateAlert.handle(this, intent)
@@ -101,7 +101,10 @@ fun NetraTheme(content: @Composable () -> Unit) {
         background = Color(0xFFF3F7F6), surface = Color.White, onSurface = Color(0xFF16201E),
         surfaceVariant = Color(0xFFE0EEEB)
     )
-    MaterialTheme(colorScheme = colors, content = content)
+    MaterialTheme(colorScheme = colors) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides colors.onBackground, content = content)
+    }
 }
 
 /** True while the video fills the whole screen (header, footer and banner are hidden). */
@@ -177,12 +180,28 @@ internal fun isVideoOrMp3(mime: String?, name: String?): Boolean {
 private fun PlaySection() {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val player = remember { ExoPlayer.Builder(context).build() }
+    var connectedPlayer by remember { mutableStateOf<androidx.media3.session.MediaController?>(null) }
+    var connectionError by remember { mutableStateOf<String?>(null) }
+    DisposableEffect(context) {
+        val token = androidx.media3.session.SessionToken(context,
+            android.content.ComponentName(context, PlaybackService::class.java))
+        val future = androidx.media3.session.MediaController.Builder(context, token).buildAsync()
+        future.addListener({
+            try { connectedPlayer = future.get() }
+            catch (_: Exception) { connectionError = "Playback service unavailable. Reopen the app to retry." }
+        }, androidx.core.content.ContextCompat.getMainExecutor(context))
+        onDispose { androidx.media3.session.MediaController.releaseFuture(future) }
+    }
+    val player = connectedPlayer
+    if (player == null) {
+        Text(connectionError ?: "Connecting to player...")
+        return
+    }
     val tv = remember { isTelevision(context) }
-    var title by remember { mutableStateOf<String?>(null) }
+    var title by remember { mutableStateOf(player.mediaMetadata.title?.toString()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var currentUri by remember { mutableStateOf<String?>(null) }
-    var hasVideo by remember { mutableStateOf(true) }
+    var currentUri by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }) }
+    var hasVideo by remember { mutableStateOf(player.currentTracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
     var choosingTracks by remember { mutableStateOf(false) }
     val full by playerFullscreen
@@ -206,15 +225,21 @@ private fun PlaySection() {
             currentUri = uri.toString()
             LastPlayed.save(context, currentUri!!, title ?: "Selected file", 0L)
             PlayerWidgetProvider.refresh(context)
-            player.setMediaItem(MediaItem.fromUri(uri))
+            player.setMediaItem(MediaItem.Builder().setUri(uri).setMediaId(uri.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
             player.prepare()
             player.playWhenReady = true
         }
     }
     DisposableEffect(player, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, false).build()
+            }
             if (event == Lifecycle.Event.ON_STOP) {
-                player.pause()
+                // Screen off/background: detach video selection; audio continues in the service.
+                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, true).build()
                 val u = currentUri
                 if (u != null) {
                     LastPlayed.save(context, u, title ?: "Selected file", player.currentPosition)
@@ -229,9 +254,13 @@ private fun PlaySection() {
                 hasVideo = updated.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)
             }
         }
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, false).build()
+        }
         lifecycle.addObserver(observer)
         player.addListener(listener)
-        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); player.release(); if (playerFullscreen.value) { playerFullscreen.value = false } }
+        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); if (playerFullscreen.value) { playerFullscreen.value = false } }
     }
 
     if (choosingTracks) TrackChoiceDialog(player, tracks) { choosingTracks = false }
@@ -283,7 +312,7 @@ private fun PlaySection() {
                             error = null
                             title = resume.name
                             currentUri = resume.uri
-                            player.setMediaItem(MediaItem.fromUri(u))
+                            player.setMediaItem(MediaItem.Builder().setUri(u).setMediaId(u.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
                             player.prepare()
                             player.seekTo(resume.positionMs)
                             player.playWhenReady = true
@@ -429,3 +458,6 @@ internal fun trackChoiceLabel(label: String?, language: String?, number: Int): S
         else -> "Track $number (language unavailable)"
     }
 }
+
+/** Only the app-owned notification PendingIntent can open this non-exported entry. */
+class UpdateEntryActivity : MainActivity()

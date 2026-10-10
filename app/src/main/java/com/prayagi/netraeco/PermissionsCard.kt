@@ -55,6 +55,11 @@ internal fun openInstallSettings(context: Context) {
 }
 
 internal fun playerPermissions(): List<PermItem> = listOf(
+    PermItem("Notifications", "Shows playback controls and silent update alerts. Media controls may still appear when notifications are denied.",
+        { if (android.os.Build.VERSION.SDK_INT >= 33) runtimeStatus(it, android.Manifest.permission.POST_NOTIFICATIONS) else "Allowed" },
+        { it.startActivity(appSettingsIntent(it)) }),
+    PermItem("Background playback", "Keeps your chosen file playing when the screen is off, using Android's media playback service. Video rendering stops in the background.",
+        { "Allowed (normal permission)" }, null),
     PermItem(
         "Internet",
         "Used to check for new versions and to download an update you ask for. Nothing about your files is sent.",

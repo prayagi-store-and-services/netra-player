@@ -37,7 +37,7 @@ fun statusFor(installedCode: Long?, latestCode: Long?): Status = when {
     else -> Status.InstalledNewer
 }
 
-fun isValidTag(tag: String): Boolean = Regex("^v[0-9]+\\.[0-9]+\\.[0-9]+$").matches(tag)
+fun isValidTag(tag: String): Boolean = Regex("^v[0-9]+\\.[0-9]+\\.[0-9]+(\\.[0-9]+)?$").matches(tag)
 
 fun isValidSha256(sha: String): Boolean = Regex("^[0-9a-f]{64}$").matches(sha)
 

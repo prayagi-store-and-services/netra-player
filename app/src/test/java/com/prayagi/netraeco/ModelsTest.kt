@@ -18,6 +18,9 @@ class ModelsTest {
 
     @Test fun tagAndShaValidation() {
         assertTrue(isValidTag("v1.0.5"))
+        assertTrue(isValidTag("v1.1.12.1"))
+        assertFalse(isValidTag("v1.1.12.1.2"))
+        assertFalse(isValidTag("v1.1.12/../x"))
         assertFalse(isValidTag("1.0.5"))
         assertFalse(isValidTag("v1.0"))
         assertTrue(isValidSha256("a".repeat(64)))
@@ -64,5 +67,14 @@ class FreshUpdateTest {
         assertEquals("a".repeat(64), Net.shaFromDigest("sha256:" + "A".repeat(64)))
         assertNull(Net.shaFromDigest("md5:abc"))
         assertNull(Net.shaFromDigest(""))
+    }
+}
+
+class BoundedResponseTest {
+    @Test fun exactLimitAllowed() {
+        assertEquals(10, Net.readBounded(java.io.ByteArrayInputStream(ByteArray(10)), 10).size)
+    }
+    @Test(expected = java.io.IOException::class) fun oversizedResponseRefused() {
+        Net.readBounded(java.io.ByteArrayInputStream(ByteArray(11)), 10)
     }
 }
