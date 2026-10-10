@@ -147,7 +147,7 @@ fun PlayerScreen() {
     val full by playerFullscreen
     val isFull = full && section == Section.Play
     Column(Modifier.fillMaxSize().background(if (isFull) Color.Black else MaterialTheme.colorScheme.background)) {
-        if (!isFull) { NavratriGreeting(); Header(); if (redesign) Footer(section) { section = it } }
+        if (!isFull) { Header(); NavratriGreeting(); if (redesign) Footer(section) { section = it } }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.fillMaxSize().then(if (isFull) Modifier else Modifier.verticalScroll(rememberScrollState()).padding(16.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
