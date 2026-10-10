@@ -11,7 +11,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.time.LocalDate
-import java.util.Locale
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 
 internal object GreetingPolicy {
     val day: LocalDate = LocalDate.of(2026, 10, 11)
@@ -27,7 +29,7 @@ internal fun NavratriGreeting() {
     var date by remember { mutableStateOf(clock().toLocalDate()) }
     LaunchedEffect(clock) { while (true) { date = clock().toLocalDate(); delay(1000) } }
     if (date != GreetingPolicy.day) return
-    Text("Jay Mata Di", color = Color(0xFFFBBF24), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    Text("Jay Mata Di", color = Color(0xFFFBBF24), fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
     DisposableEffect(date) {
         val prefs = context.getSharedPreferences("netra_greeting", Context.MODE_PRIVATE)
         val seen = prefs.getBoolean("oct11_seen", false)
