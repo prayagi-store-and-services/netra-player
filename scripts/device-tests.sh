@@ -18,5 +18,7 @@ adb pull /data/local/tmp/player-folder.png app/build/device-screenshots/folder.p
 adb pull /data/local/tmp/player-subtitle.png app/build/device-screenshots/subtitle.png || true
 adb pull /data/local/tmp/player-folder-failure.png app/build/device-screenshots/folder-failure.png || true
 adb pull /data/local/tmp/player-folder-failure.xml app/build/device-screenshots/folder-failure.xml || true
-adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/subtitle-diagnostic.txt app/build/device-screenshots/subtitle-diagnostic.txt || true
+for name in gate-before gate-after gate-update gate-about gate-rollback; do
+  adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
+done
 exit $test_status
