@@ -112,7 +112,9 @@ private val TealDark = Color(0xFF004D40)
 @Composable
 fun NetraTheme(content: @Composable () -> Unit) {
     val redesign by rememberPlayerDesign()
-    val festive = LocalPlayerDesignClock.current().toLocalDate() == GreetingPolicy.day
+    val clock = LocalPlayerDesignClock.current
+    var festive by remember { mutableStateOf(clock().toLocalDate() == GreetingPolicy.day) }
+    LaunchedEffect(clock) { while (true) { festive = clock().toLocalDate() == GreetingPolicy.day; delay(1000) } }
     val dark = isSystemInDarkTheme()
     val colors = if (redesign) darkColorScheme(
         primary = if (festive) Color(0xFFFBBF24) else Color(0xFF29DDE0), onPrimary = Color(0xFF002A34),
