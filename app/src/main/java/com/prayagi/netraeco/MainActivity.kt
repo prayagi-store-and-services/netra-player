@@ -64,13 +64,32 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 
 open class MainActivity : ComponentActivity() {
+    private var regionDenied = false
+
+    private fun denyRegion(): Boolean {
+        if (!RegionPolicy.isBlocked(this)) return false
+        regionDenied = true
+        stopService(android.content.Intent(this, PlaybackService::class.java))
+        setContent {
+            MaterialTheme {
+                Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                    Text("Not available in this region", color = Color.White, modifier = Modifier.padding(24.dp))
+                }
+                LaunchedEffect(Unit) { delay(2500); finishAndRemoveTask() }
+            }
+        }
+        return true
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
+        if (denyRegion()) return
         UpdateAlert.handle(this, intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (denyRegion()) return
         UpdateAlert.start(this)
         CrashReporter.install(this)
         setContent { NetraTheme { PlayerScreen() } }
@@ -78,6 +97,7 @@ open class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (regionDenied || denyRegion()) return
         // Delete installer files left from a finished or cancelled update (not while a download runs).
         Thread {
             Net.cleanLeftovers(applicationContext)
