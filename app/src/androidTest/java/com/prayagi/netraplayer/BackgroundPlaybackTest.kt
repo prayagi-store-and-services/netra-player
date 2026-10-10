@@ -115,7 +115,7 @@ class BackgroundPlaybackTest {
             shell("cmd statusbar collapse")
             scenario.moveToState(Lifecycle.State.RESUMED)
             shell("am start -n com.prayagi.netraplayer/.MainActivity")
-            shell("input swipe 400 1100 400 450 450")
+            shell("input swipe 20 1600 20 550 450")
             awaitNode("loaded player") { it.text?.contains("Open another file") == true }
             capture("loaded")
             shell("cmd uimode night yes")
