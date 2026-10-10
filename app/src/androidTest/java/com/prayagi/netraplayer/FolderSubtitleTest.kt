@@ -26,7 +26,7 @@ class FolderSubtitleTest {
                 text !in listOf("Open folder", "Download", "PlayerFixture", "Use this folder", "Allow")) {
                 fun scroll(n: AccessibilityNodeInfo?): Boolean {
                     if (n == null) return false
-                    if (n.isScrollable && n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+                    if (n.isScrollable && n.performAction(if (text.startsWith("Queue:") || text in listOf("Next", "Previous", "Open .srt subtitles", "Tracks")) AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD else AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
                     for (i in 0 until n.childCount) if (scroll(n.getChild(i))) return true
                     return false
                 }
@@ -66,8 +66,11 @@ class FolderSubtitleTest {
             val pickerReady = System.currentTimeMillis() + 10000
             while (System.currentTimeMillis() < pickerReady &&
                 ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName) Thread.sleep(200)
-            click("Download")
-            click("PlayerFixture")
+            // The picker may already remember this folder, where Download is a breadcrumb.
+            if (find(ins.uiAutomation.rootInActiveWindow, "a-video.mp4") == null) {
+                if (find(ins.uiAutomation.rootInActiveWindow, "PlayerFixture") == null) click("Download")
+                click("PlayerFixture")
+            }
             click("Use this folder")
             click("Allow")
             shell("input swipe 20 1600 20 550 450")
