@@ -30,11 +30,22 @@ object Net {
     fun fetchText(url: String, fresh: Boolean = false): String? = try {
         val c = open(url, fresh)
         if (c.responseCode != 200) null else {
-            val bytes = c.inputStream.use { it.readBytes() }
+            val bytes = c.inputStream.use { readBounded(it, 1024 * 1024) }
             if (bytes.size > 1024 * 1024) null else String(bytes, Charsets.UTF_8)
         }
     } catch (e: Exception) {
         null
+    }
+
+    internal fun readBounded(input: java.io.InputStream, limit: Int): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        while (true) {
+            val n = input.read(buffer, 0, minOf(buffer.size, limit - out.size() + 1))
+            if (n < 0) return out.toByteArray()
+            if (out.size() + n > limit) throw java.io.IOException("Response exceeds limit")
+            out.write(buffer, 0, n)
+        }
     }
 
     /** "sha256:abc..." from the GitHub API to a plain lowercase hash, or null when it is not a SHA-256. */

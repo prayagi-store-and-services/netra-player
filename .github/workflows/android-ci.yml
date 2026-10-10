@@ -42,6 +42,10 @@ jobs:
           set -o pipefail
           mkdir -p app/build/ci-diagnostics
           gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest --stacktrace 2>&1 | tee app/build/ci-diagnostics/android-build.log
+      - name: Record resolved app dependencies for advisory review
+        run: |
+          mkdir -p app/build/ci-diagnostics
+          gradle --no-daemon :app:dependencies --configuration releaseRuntimeClasspath > app/build/ci-diagnostics/release-runtime-dependencies.txt
       - name: Upload build log and test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,6 +54,7 @@ jobs:
           path: |
             app/build/test-results/testDebugUnitTest/*.xml
             app/build/ci-diagnostics/android-build.log
+            app/build/ci-diagnostics/release-runtime-dependencies.txt
           if-no-files-found: warn
 
       - name: Upload test APK for device verification
