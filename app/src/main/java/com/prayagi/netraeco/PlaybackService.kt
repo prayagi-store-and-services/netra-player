@@ -12,6 +12,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        if (RegionPolicy.isBlocked(this)) { stopSelf(); return }
         val player = ExoPlayer.Builder(this).build().apply {
             setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
@@ -21,6 +22,11 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+        if (RegionPolicy.isBlocked(this)) {
+            session?.player?.stop()
+            stopSelf()
+            return null
+        }
         // Own UI and Android's trusted media controls only. Other apps cannot browse local files.
         return if (controllerInfo.packageName == packageName || controllerInfo.isTrusted) session else null
     }
