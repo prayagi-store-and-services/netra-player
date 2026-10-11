@@ -19,9 +19,13 @@ class FolderQueueTest {
         return null
     }
     private fun node(text: String): AccessibilityNodeInfo {
-        val end = System.currentTimeMillis() + 10000
+        // Compose exposes only visible nodes. Start at the top and inspect each real scroll position.
+        find(ins.uiAutomation.rootInActiveWindow, text)?.let { return it }
+        repeat(6) { scrollPage(false) }
+        val end = System.currentTimeMillis() + 15000
         while (System.currentTimeMillis() < end) {
             find(ins.uiAutomation.rootInActiveWindow, text)?.let { return it }
+            scrollPage(true)
             Thread.sleep(200)
         }
         shell("screencap -p /data/local/tmp/player-folder-failure.png")
@@ -34,6 +38,18 @@ class FolderQueueTest {
         assertTrue("Clickable $text", n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
     }
     private fun capture(name: String) { Thread.sleep(700); shell("screencap -p /data/local/tmp/player-$name.png") }
+    private fun scrollPage(forward: Boolean) {
+        fun scrollable(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+            if (n == null) return null
+            if (n.isScrollable) return n
+            for (i in 0 until n.childCount) scrollable(n.getChild(i))?.let { return it }
+            return null
+        }
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val action = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        scrollable(automation.rootInActiveWindow)?.performAction(action)
+        Thread.sleep(400)
+    }
     @Test fun chosenFolderQueue() {
         shell("cmd statusbar collapse")
         ActivityScenario.launch(MainActivity::class.java).use {
