@@ -1,5 +1,11 @@
 # Security notes - Netra Player
 
+## Folder list and queue (v1.1.13)
+- Android's system folder picker grants read access only to the chosen folder. No broad storage permission. The app queries direct children off the UI thread and lists video/MP3 only; it does not scan other folders.
+- Tapping a file starts a queue of that folder's supported files. Previous/Next and automatic advance use Media3's existing playlist. File names and content stay on the device.
+- Folder read access is persisted using the picker grant; lost access is reported and the user picks again. No new library, server or app permission.
+
+
 ## Background audio (v1.1.12)
 - Playback lives in an Android MediaSessionService. Locking the screen/backgrounding disables the video track while audio keeps playing. Media3 supplies media controls in the notification. Audio focus is respected; unplugging headphones pauses playback.
 - New library: androidx.media3:media3-session 1.11.1. New normal permissions: FOREGROUND_SERVICE and FOREGROUND_SERVICE_MEDIA_PLAYBACK. Existing notification permission is explained in Settings.

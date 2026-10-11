@@ -34,6 +34,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Downloads that live outside any screen: several apps can download at the same time, the list survives the
@@ -75,7 +76,7 @@ object DownloadCenter {
         synchronized(this) {
             if (jobs[key]?.isActive == true) return
             c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putString(key, listOf(app.packageName, release.versionName, release.versionCode, release.size, app.name, app.id).joinToString("|")).apply()
+                .putString(key, listOf(app.packageName, release.versionName, release.versionCode, release.size, app.name, app.id, release.sha256).joinToString("|")).apply()
             lastEta.remove(key)
             put(Item(key, app.id, app.name, release.versionName, release.versionCode, app.packageName, 0L, release.size, null, DOWNLOADING))
             jobs[key] = scope.launch {
@@ -98,9 +99,11 @@ object DownloadCenter {
         val map = items.value.toMutableMap()
         dir(c).listFiles()?.forEach { f ->
             if (jobs[f.name]?.isActive == true) return@forEach
+            // A temporary file may belong to the notification updater, not this screen's job map.
+            if (f.name.endsWith(".part") && Net.downloadsRunning()) return@forEach
             val p = prefs.getString(f.name, null)?.split("|")
             val size = p?.getOrNull(3)?.toLongOrNull()
-            if (p == null || p.size < 6 || size == null || f.length() != size) { f.delete(); prefs.edit().remove(f.name).apply(); map.remove(f.name); return@forEach }
+            if (p == null || p.size < 7 || size == null || !ApkIntegrity.matches(f, size, p[6])) { f.delete(); prefs.edit().remove(f.name).apply(); map.remove(f.name); return@forEach }
             if (map[f.name]?.state != DONE) {
                 map[f.name] = Item(f.name, p[5], p[4], p[1], p[2].toLongOrNull() ?: 0L, p[0], size, size, null, DONE)
             }
@@ -169,7 +172,7 @@ fun SelfDownloadButton(release: LatestRelease) {
 fun DownloadManagerCard() {
     val context = LocalContext.current
     val all by DownloadCenter.items.collectAsState()
-    LaunchedEffect(Unit) { DownloadCenter.refresh(context) }
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { DownloadCenter.refresh(context) } }
     if (all.isEmpty()) return
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
