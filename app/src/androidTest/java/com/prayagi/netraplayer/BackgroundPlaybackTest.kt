@@ -31,10 +31,11 @@ class BackgroundPlaybackTest {
         for (i in 0 until node.childCount) find(node.getChild(i), predicate)?.let { return it }
         return null
     }
-    private fun awaitNode(label: String, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {
+    private fun awaitNode(label: String, scroll: Boolean = false, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {
         val until = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < until) {
             find(instrumentation.uiAutomation.rootInActiveWindow, predicate)?.let { return it }
+            if (scroll) scrollPage(true)
             Thread.sleep(200)
         }
         capture("failure")
@@ -49,6 +50,18 @@ class BackgroundPlaybackTest {
     private fun capture(name: String) {
         try { instrumentation.uiAutomation.waitForIdle(250, 2500) } catch (_: java.util.concurrent.TimeoutException) {}
         shell("screencap -p /data/local/tmp/player-$name.png")
+    }
+    private fun scrollPage(forward: Boolean) {
+        fun scrollable(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+            if (n == null) return null
+            if (n.isScrollable) return n
+            for (i in 0 until n.childCount) scrollable(n.getChild(i))?.let { return it }
+            return null
+        }
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val action = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        scrollable(automation.rootInActiveWindow)?.performAction(action)
+        Thread.sleep(400)
     }
     @Test fun localAudioContinuesWithActivityStopped() {
         val context = instrumentation.targetContext
@@ -115,10 +128,10 @@ class BackgroundPlaybackTest {
             shell("cmd statusbar collapse")
             scenario.moveToState(Lifecycle.State.RESUMED)
             shell("am start -n com.prayagi.netraplayer/.MainActivity")
-            awaitNode("loaded player") { it.text?.contains("Open another file") == true }
+            awaitNode("loaded player", scroll = true) { it.text?.contains("Open another file") == true }
             capture("loaded")
             shell("cmd uimode night yes")
-            awaitNode("dark player") { it.text?.contains("Open another file") == true }
+            awaitNode("dark player", scroll = true) { it.text?.contains("Open another file") == true }
             Thread.sleep(800)
             capture("dark")
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
