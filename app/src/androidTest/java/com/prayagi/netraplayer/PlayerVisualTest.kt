@@ -16,6 +16,59 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class PlayerVisualTest {
+    private fun clickLabel(text: String) {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        fun find(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+            if (node == null) return null
+            if (node.text?.toString() == text) return node
+            for (i in 0 until node.childCount) find(node.getChild(i))?.let { return it }
+            return null
+        }
+        val end = System.currentTimeMillis() + 10000
+        while (System.currentTimeMillis() < end) {
+            var node = find(ins.uiAutomation.rootInActiveWindow)
+            while (node != null && !node.isClickable) node = node.parent
+            if (node?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true) {
+                ins.waitForIdleSync()
+                return
+            }
+            Thread.sleep(100)
+        }
+        throw AssertionError("Missing clickable $text")
+    }
+
+    @Test fun trackSelectionRequiresApplyAndCancelPreservesPlayback() {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var player: ExoPlayer
+            var closed = false
+            val text = TrackGroup("text", Format.Builder().setSampleMimeType("application/x-subrip").setLanguage("en").build())
+            val tracks = Tracks(ImmutableList.of(Tracks.Group(text, false, intArrayOf(C.FORMAT_HANDLED), booleanArrayOf(false))))
+            scenario.onActivity { activity ->
+                player = ExoPlayer.Builder(activity).build()
+                activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+            }
+            ins.waitForIdleSync()
+            clickLabel("Subtitles off")
+            scenario.onActivity { org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes) }
+            clickLabel("Cancel")
+            scenario.onActivity {
+                org.junit.Assert.assertTrue(closed)
+                org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                closed = false
+                it.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+            }
+            ins.waitForIdleSync()
+            clickLabel("Subtitles off")
+            clickLabel("Use selected tracks")
+            scenario.onActivity {
+                org.junit.Assert.assertTrue(closed)
+                org.junit.Assert.assertTrue(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                player.release()
+            }
+        }
+    }
+
     @Test fun homeAndTrackDialog() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         android.os.ParcelFileDescriptor.AutoCloseInputStream(
