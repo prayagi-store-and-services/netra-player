@@ -35,7 +35,10 @@ class FolderQueueTest {
     private fun click(text: String) {
         var n: AccessibilityNodeInfo? = node(text)
         while(n != null && !n.isClickable) n = n.parent
-        assertTrue("Clickable $text", n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+        var clicked = n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true
+        if (!clicked) { Thread.sleep(400); n = node(text); while(n != null && !n.isClickable) n = n.parent
+            clicked = n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true }
+        assertTrue("Clickable $text", clicked)
     }
     private fun capture(name: String) { Thread.sleep(700); shell("screencap -p /data/local/tmp/player-$name.png") }
     private fun scrollPage(forward: Boolean) {
@@ -52,14 +55,42 @@ class FolderQueueTest {
     }
     @Test fun chosenFolderQueue() {
         shell("cmd statusbar collapse")
+        // Each test starts with an empty service queue, even after a preceding failure.
+        var reset: androidx.media3.session.MediaController? = null
+        val ready = java.util.concurrent.CountDownLatch(1)
+        ins.runOnMainSync {
+            val f = androidx.media3.session.MediaController.Builder(ins.targetContext,
+                androidx.media3.session.SessionToken(ins.targetContext,
+                    android.content.ComponentName(ins.targetContext, PlaybackService::class.java))).buildAsync()
+            f.addListener({ reset = f.get(); ready.countDown() },
+                androidx.core.content.ContextCompat.getMainExecutor(ins.targetContext))
+        }
+        assertTrue("Reset controller connected", ready.await(10, java.util.concurrent.TimeUnit.SECONDS))
+        ins.runOnMainSync { reset!!.stop(); reset!!.clearMediaItems(); reset!!.release(); playerFullscreen.value = false }
         ActivityScenario.launch(MainActivity::class.java).use {
             click("Open folder")
-            click("Download")
-            click("PlayerFixture")
+            val pickerReady = System.currentTimeMillis() + 10000
+            while (System.currentTimeMillis() < pickerReady &&
+                ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName) Thread.sleep(200)
+            // The picker may already remember this folder, where Download is a breadcrumb.
+            if (find(ins.uiAutomation.rootInActiveWindow, "a-video.mp4") == null) {
+                if (find(ins.uiAutomation.rootInActiveWindow, "PlayerFixture") == null) click("Download")
+                click("PlayerFixture")
+            }
             click("Use this folder")
             click("Allow")
+            shell("input swipe 20 1600 20 550 450")
             node("Folder files: 2")
             click("a-video.mp4")
+            repeat(5) {
+                fun top(n: AccessibilityNodeInfo?): Boolean {
+                    if (n == null) return false
+                    if (n.isScrollable && n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) return true
+                    for (i in 0 until n.childCount) if (top(n.getChild(i))) return true
+                    return false
+                }
+                top(ins.uiAutomation.rootInActiveWindow); Thread.sleep(200)
+            }
             node("Queue: 1 of 2")
             capture("folder")
             click("Next")
