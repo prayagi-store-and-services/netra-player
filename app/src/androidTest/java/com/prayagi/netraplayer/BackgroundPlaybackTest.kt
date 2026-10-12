@@ -136,14 +136,26 @@ class BackgroundPlaybackTest {
             capture("dark")
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
             assertTrue("Fullscreen is clickable", fullscreen.performAction(AccessibilityNodeInfo.ACTION_CLICK))
-            Thread.sleep(1500)
+            // First-use immersive tutorial is an OS window, not the player controller.
+            val tutorialUntil = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < tutorialUntil) {
+                var tutorial = find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Got it" }
+                if (tutorial != null) {
+                    while (!tutorial!!.isClickable && tutorial.parent != null) tutorial = tutorial.parent
+                    tutorial!!.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    break
+                }
+                Thread.sleep(200)
+            }
+            shell("input tap 650 550")
+            if (find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } == null) shell("input tap 650 550")
+            awaitNode("Tracks visible in fullscreen") { it.text?.toString() == "Tracks" }
             capture("fullscreen")
-            // A tap reveals controls; a second tap hides both native controls and metadata.
-            shell("input tap 650 250")
-            Thread.sleep(500)
-            capture("fullscreen-hidden")
+            shell("input tap 650 550")
+            Thread.sleep(700)
             assertTrue("Tracks overlay hides with controller", find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } == null)
-            shell("input tap 650 250")
+            capture("fullscreen-hidden")
+            shell("input tap 650 550")
             awaitNode("Tracks visible after tap") { it.text?.toString() == "Tracks" }
             capture("fullscreen-shown")
             shell("input keyevent KEYCODE_BACK")
