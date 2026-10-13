@@ -30,6 +30,8 @@ class PlayerVisualTest {
             while (node != null && !node.isClickable) node = node.parent
             if (node?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true) {
                 ins.waitForIdleSync()
+                // Wait for the selection accessibility event/recomposition before Apply.
+                ins.uiAutomation.waitForIdle(300, 5000)
                 return
             }
             Thread.sleep(100)
@@ -66,6 +68,7 @@ class PlayerVisualTest {
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)
                 org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                org.junit.Assert.assertTrue("Explicit subtitle override applied", player.trackSelectionParameters.overrides.containsKey(text))
                 org.junit.Assert.assertEquals(listOf(0), player.trackSelectionParameters.overrides[text]!!.trackIndices)
                 player.release()
             }
