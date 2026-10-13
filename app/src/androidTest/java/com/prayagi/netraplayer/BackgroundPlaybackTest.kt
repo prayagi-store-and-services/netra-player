@@ -147,8 +147,23 @@ class BackgroundPlaybackTest {
                 val view = findPlayer(activity.window.decorView) ?: throw AssertionError("PlayerView missing from view hierarchy")
                 org.junit.Assert.assertTrue("Scenario activity owns visible PlayerView", view.isShown)
                 view.showController()
-                org.junit.Assert.assertTrue("Controller is visible after setup", view.isControllerFullyVisible)
             }
+            // showController animates; isControllerFullyVisible is false until the animation ends.
+            var controllerReady = false
+            val controllerUntil = System.currentTimeMillis() + 3000
+            while (!controllerReady && System.currentTimeMillis() < controllerUntil) {
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity ->
+                    fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
+                        if (view is androidx.media3.ui.PlayerView) return view
+                        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findPlayer(view.getChildAt(i))?.let { return it }
+                        return null
+                    }
+                    controllerReady = findPlayer(activity.window.decorView)?.isControllerFullyVisible == true
+                }
+                if (!controllerReady) Thread.sleep(50)
+            }
+            org.junit.Assert.assertTrue("Controller became fully visible after animation", controllerReady)
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
             assertTrue("Fullscreen is clickable", fullscreen.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             // First-use immersive tutorial is an OS window, not the player controller.
