@@ -127,7 +127,10 @@ class BackgroundPlaybackTest {
             instrumentation.runOnMainSync { assertTrue("Notification resumed playback", controller!!.playWhenReady) }
             shell("cmd statusbar collapse")
             scenario.moveToState(Lifecycle.State.RESUMED)
-            shell("am start -n com.prayagi.netraplayer/.MainActivity")
+            // Resume the scenario-owned activity. A shell am start creates another standard-mode instance.
+            scenario.onActivity { activity ->
+                org.junit.Assert.assertEquals(Lifecycle.State.RESUMED, activity.lifecycle.currentState)
+            }
             awaitNode("loaded player", scroll = true) { it.text?.contains("Open another file") == true }
             capture("loaded")
             shell("cmd uimode night yes")
@@ -142,7 +145,9 @@ class BackgroundPlaybackTest {
                     return null
                 }
                 val view = findPlayer(activity.window.decorView) ?: throw AssertionError("PlayerView missing from view hierarchy")
+                org.junit.Assert.assertTrue("Scenario activity owns visible PlayerView", view.isShown)
                 view.showController()
+                org.junit.Assert.assertTrue("Controller is visible after setup", view.isControllerFullyVisible)
             }
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
             assertTrue("Fullscreen is clickable", fullscreen.performAction(AccessibilityNodeInfo.ACTION_CLICK))
