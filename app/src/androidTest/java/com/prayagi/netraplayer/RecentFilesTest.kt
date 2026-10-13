@@ -39,3 +39,40 @@ class RecentFilesTest {
         await { RecentFiles.items.value.isEmpty() }
     }
 }
+
+class RecentMigrationTest {
+    @Test fun migrateLegacyOnceAndDatabaseReopens() {
+        val c = InstrumentationRegistry.getInstrumentation().targetContext
+        // Use isolated ContextWrapper prefs so production test state is untouched.
+        val isolated = object : android.content.ContextWrapper(c) {
+            override fun getSharedPreferences(name: String, mode: Int): android.content.SharedPreferences =
+                c.getSharedPreferences("migration_test_$name", mode)
+        }
+        isolated.getSharedPreferences("netra_history_settings", 0).edit().clear().commit()
+        isolated.getSharedPreferences("netra_last_played", 0).edit().clear()
+            .putString("uri", "content://migration/file").putString("name", "Legacy file")
+            .putLong("pos", 75000).putLong("at", 12345).commit()
+        val name = "recent-migration-test.db"
+        c.deleteDatabase(name)
+        var db = androidx.room.Room.databaseBuilder(c, RecentDatabase::class.java, name).build()
+        try {
+            RecentFiles.migrateLegacy(isolated, db)
+            val item = db.recent().list().single()
+            assertEquals(75000L, item.positionMs)
+            assertEquals(12345L, item.playedAtMs)
+            assertFalse(isolated.getSharedPreferences("netra_last_played", 0).contains("uri"))
+            db.recent().clear()
+            isolated.getSharedPreferences("netra_last_played", 0).edit().putString("uri", "content://stale/file").putString("name", "Stale").commit()
+            RecentFiles.migrateLegacy(isolated, db)
+            assertTrue("Migration runs once", db.recent().list().isEmpty())
+            db.recent().put(item)
+            db.close()
+            db = androidx.room.Room.databaseBuilder(c, RecentDatabase::class.java, name).build()
+            assertEquals(item, db.recent().list().single())
+        } finally {
+            db.close(); c.deleteDatabase(name)
+            isolated.getSharedPreferences("netra_history_settings", 0).edit().clear().commit()
+            isolated.getSharedPreferences("netra_last_played", 0).edit().clear().commit()
+        }
+    }
+}
