@@ -29,14 +29,30 @@ class PlayerWidgetProvider : AppWidgetProvider() {
 
         private fun draw(context: Context, mgr: AppWidgetManager, id: Int) {
             val last = LastPlayed.load(context)
+            val privateHistory = RecentFiles.privatePlayback.value
+            val state = WidgetPlaybackState
             val views = RemoteViews(context.packageName, R.layout.widget_player)
-            if (last == null) {
+            if (privateHistory) {
+                views.setTextViewText(R.id.pw_title, "Private playback")
+                views.setTextViewText(R.id.pw_detail, "File history is hidden")
+            } else if (state.active) {
+                views.setTextViewText(R.id.pw_title, state.title ?: "Selected file")
+                views.setTextViewText(R.id.pw_detail, if (state.playing) "Playing" else "Paused or preparing")
+            } else if (last == null) {
                 views.setTextViewText(R.id.pw_title, "Unavailable")
                 views.setTextViewText(R.id.pw_detail, "Nothing played yet")
             } else {
                 views.setTextViewText(R.id.pw_title, last.name)
                 val at = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(last.savedAtMs))
                 views.setTextViewText(R.id.pw_detail, "Stopped at ${LastPlayed.formatPosition(last.positionMs)}  |  saved $at")
+            }
+            views.setTextViewText(R.id.pw_play_pause, if (state.playing) "Pause" else "Play")
+            views.setBoolean(R.id.pw_play_pause, "setEnabled", state.active)
+            views.setBoolean(R.id.pw_next, "setEnabled", state.active && state.next)
+            for ((view, action) in listOf(R.id.pw_play_pause to WidgetPlaybackReceiver.PLAY_PAUSE, R.id.pw_next to WidgetPlaybackReceiver.NEXT)) {
+                val command = Intent(context, WidgetPlaybackReceiver::class.java).setAction(action)
+                views.setOnClickPendingIntent(view, PendingIntent.getBroadcast(context, view, command,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             }
             val intent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP }
             views.setOnClickPendingIntent(R.id.pw_root, PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
