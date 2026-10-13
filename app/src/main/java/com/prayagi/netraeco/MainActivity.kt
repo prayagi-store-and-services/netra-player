@@ -33,6 +33,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -308,7 +309,10 @@ private fun PlaySection() {
         else c.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
     }
     androidx.activity.compose.BackHandler(enabled = full) { setFull(false) }
-    var last by remember { mutableStateOf(LastPlayed.load(context)) }
+    LaunchedEffect(Unit) { RecentFiles.start(context) }
+    val recent by RecentFiles.items.collectAsState()
+    val privateHistory by RecentFiles.privatePlayback.collectAsState()
+    val last = if (privateHistory) null else recent.firstOrNull()?.let { LastPlayedItem(it.uri, it.name, it.positionMs, it.playedAtMs) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && !isVideoOrMp3(context.contentResolver.getType(uri), displayName(context, uri))) {
             error = "Netra Player plays video and MP3 files only. Please pick a video or an MP3."
@@ -317,6 +321,7 @@ private fun PlaySection() {
             title = displayName(context, uri)
             try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
             currentUri = uri.toString()
+            RecentFiles.selected(context)
             LastPlayed.save(context, currentUri!!, title ?: "Selected file", 0L)
             PlayerWidgetProvider.refresh(context)
             player.setMediaItem(MediaItem.Builder().setUri(uri).setMediaId(uri.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
@@ -396,6 +401,38 @@ private fun PlaySection() {
         }
     }
     if (!full) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Private playback history")
+                Text("No recent files or resume positions are saved while on. Existing history stays local. Widget file names are hidden. Usage counting is paused. Updates still use internet.", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(checked = privateHistory, onCheckedChange = { RecentFiles.setPrivate(context, it) })
+        }
+        if (!privateHistory && recent.isNotEmpty()) {
+            Text("Recent files", style = MaterialTheme.typography.titleMedium)
+            OutlinedButton(onClick = { RecentFiles.clear(context, currentUri) }) { Text("Clear recent files") }
+            recent.forEach { file ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(Modifier.weight(1f), onClick = {
+                        folderScope.launch {
+                            val available = withContext(Dispatchers.IO) {
+                                try { context.contentResolver.openFileDescriptor(Uri.parse(file.uri), "r")?.use { true } ?: false } catch (_: Exception) { false }
+                            }
+                            if (!available) error = "This file is unavailable. Pick it again or remove it from recent files."
+                            else {
+                                RecentFiles.selected(context)
+                                title = file.name
+                                currentUri = file.uri
+                                error = null
+                                player.setMediaItem(MediaItem.Builder().setUri(file.uri).setMediaId(file.uri).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(file.name).build()).build())
+                                player.prepare(); player.seekTo(file.positionMs); player.playWhenReady = true
+                            }
+                        }
+                    }) { Text("${file.name} at ${LastPlayed.formatPosition(file.positionMs)}", maxLines = 2) }
+                    OutlinedButton(onClick = { RecentFiles.remove(context, file.uri, currentUri) }) { Text("Remove") }
+                }
+            }
+        }
         OutlinedButton(onClick = {
             try { folderPicker.launch(null) }
             catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
@@ -428,6 +465,7 @@ private fun PlaySection() {
                             val u = android.net.Uri.parse(resume.uri)
                             error = null
                             title = resume.name
+                            RecentFiles.selected(context)
                             currentUri = resume.uri
                             player.setMediaItem(MediaItem.Builder().setUri(u).setMediaId(u.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
                             player.prepare()
@@ -461,6 +499,7 @@ private fun PlaySection() {
         folderFiles.drop(folderPage * 30).take(30).forEachIndexed { offset, file ->
             val index = folderPage * 30 + offset
             OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                RecentFiles.selected(context)
                 player.setMediaItems(folderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(f.name).build()).build() }, index, 0L)
                 title = file.name
