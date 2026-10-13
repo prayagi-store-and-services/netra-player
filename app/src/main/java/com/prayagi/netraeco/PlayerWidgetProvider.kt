@@ -28,6 +28,10 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         private fun draw(context: Context, mgr: AppWidgetManager, id: Int) {
+            mgr.updateAppWidget(id, buildViews(context))
+        }
+
+        internal fun buildViews(context: Context): RemoteViews {
             val last = LastPlayed.load(context)
             val privateHistory = RecentFiles.privatePlayback.value
             val state = WidgetPlaybackState
@@ -56,7 +60,7 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             }
             val intent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP }
             views.setOnClickPendingIntent(R.id.pw_root, PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-            mgr.updateAppWidget(id, views)
+            return views
         }
     }
 }
