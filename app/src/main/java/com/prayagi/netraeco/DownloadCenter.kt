@@ -70,6 +70,24 @@ object DownloadCenter {
         return shown
     }
 
+    fun rememberRelease(c: Context, app: CatalogApp, release: LatestRelease) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(keyFor(app, release), listOf(app.packageName, release.versionName, release.versionCode, release.size, app.name, app.id, release.sha256).joinToString("|")).commit()
+    }
+
+    /** Register only a fully verified file so refresh/cleanup can keep it until installation. */
+    fun register(c: Context, app: CatalogApp, release: LatestRelease) {
+        require(hasVerifiedFile(c, app, release)) { "Update file is not verified." }
+        val key = keyFor(app, release)
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(key, listOf(app.packageName, release.versionName, release.versionCode, release.size, app.name, app.id, release.sha256).joinToString("|")).commit()
+        put(Item(key, app.id, app.name, release.versionName, release.versionCode, app.packageName,
+            release.size, release.size, null, DONE))
+    }
+
+    fun hasVerifiedFile(c: Context, app: CatalogApp, release: LatestRelease): Boolean =
+        ApkIntegrity.matches(file(c, keyFor(app, release)), release.size, release.sha256)
+
     fun start(context: Context, app: CatalogApp, release: LatestRelease) {
         val c = context.applicationContext
         val key = keyFor(app, release)
