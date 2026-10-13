@@ -1,3 +1,10 @@
+## Background update preparation (draft, not released)
+- Every 6 hours the update worker checks this app's public release. A newer APK is downloaded into private cache only on Wi-Fi or non-roaming mobile data up to 100 MiB. Data Saver, offline state and battery below 20% without charging stop background download; unknown battery state fails closed. Network and battery are rechecked while bytes arrive.
+- Size and SHA-256 are verified before a file is marked downloaded. Saved files are verified again before reuse, registered for the Downloads list, and deleted only once the installed version matches or is newer, or when the user deletes them. Cache may be reclaimed by Android; the tap path then downloads again.
+- A downloaded notification opens Android's install confirmation. It never silently installs or deletes the file just because the installer opened. Install-source permission may require a separate Settings step.
+- Normal permission ACCESS_NETWORK_STATE is added to read network/Data Saver state. Existing Internet and install permissions remain. No media or device identifier is uploaded; update hosts still receive ordinary request/connection metadata.
+- Audit gap retained: the app verifies hash/size but has no app-side APK package/signer precheck. Android's installer enforces signing compatibility. This draft does not claim that gap fixed.
+
 # Security notes - Netra Player
 
 ## User-selected SRT subtitles (v1.1.14)
@@ -59,7 +66,7 @@ The header is the Netra standard: 56 dp, fixed, only the app name, the installed
 
 ## Update safety
 - The updater only accepts releases from the prayagi-store-and-services organization, a valid vX.Y.Z tag and a 64-character sha256, and checks the downloaded size.
-- Installer files are deleted after the update is installed or cancelled.
+- Installer files are deleted after the installed version is confirmed, or when the user deletes them; cancellation alone does not delete a verified file.
 
 ## Dependencies
 - AndroidX Media3 (exoplayer, ui) 1.11.1.
