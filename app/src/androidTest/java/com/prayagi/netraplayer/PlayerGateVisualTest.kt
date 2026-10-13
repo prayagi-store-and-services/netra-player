@@ -58,6 +58,9 @@ class PlayerGateVisualTest {
             time.set(LocalDateTime.of(2026,10,10,22,0))
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
             waitForTagline(false)
+            // Header and greeting each observe the test clock. Await both settled conditions.
+            val greetingUntil = System.currentTimeMillis() + 10000
+            while (find(ins.uiAutomation.rootInActiveWindow, "Jay Mata Di") != null && System.currentTimeMillis() < greetingUntil) Thread.sleep(100)
             shot("gate-rollback")
             assertTrue("No greeting after rollback",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")==null)
         }
