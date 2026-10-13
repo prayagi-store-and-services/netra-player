@@ -67,7 +67,7 @@ class BackgroundPlaybackTest {
         val context = instrumentation.targetContext
         val wav = File(context.filesDir, "device-test.wav")
         val sampleRate = 8000
-        val dataSize = sampleRate * 2 * 20
+        val dataSize = sampleRate * 2 * 120
         val buffer = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN)
         buffer.put("RIFF".toByteArray()).putInt(36 + dataSize).put("WAVEfmt ".toByteArray())
         buffer.putInt(16).putShort(1).putShort(1).putInt(sampleRate).putInt(sampleRate * 2)
@@ -111,7 +111,7 @@ class BackgroundPlaybackTest {
                         if (controller!!.currentMediaItemIndex == 1) advanced.countDown()
                     }
                 })
-                controller!!.seekTo(19_500)
+                controller!!.seekTo(119_500)
             }
             assertTrue("Queue advanced to next local item", advanced.await(10, TimeUnit.SECONDS))
             shell("cmd statusbar expand-notifications")
