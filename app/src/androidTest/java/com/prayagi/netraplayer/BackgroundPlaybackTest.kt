@@ -134,6 +134,10 @@ class BackgroundPlaybackTest {
             awaitNode("dark player", scroll = true) { it.text?.contains("Open another file") == true }
             Thread.sleep(800)
             capture("dark")
+            // Media3 controls auto-hide during playback. Reveal them through the real surface.
+            val surface = awaitNode("Player surface") { it.className?.toString()?.endsWith("PlayerView") == true }
+            val bounds = android.graphics.Rect().also { surface.getBoundsInScreen(it) }
+            shell("input tap ${bounds.centerX()} ${bounds.centerY()}")
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
             assertTrue("Fullscreen is clickable", fullscreen.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             // First-use immersive tutorial is an OS window, not the player controller.
