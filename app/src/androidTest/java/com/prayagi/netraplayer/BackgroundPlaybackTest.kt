@@ -178,6 +178,7 @@ class BackgroundPlaybackTest {
                 Thread.sleep(200)
             }
             val touches = java.util.concurrent.atomic.AtomicInteger(0)
+            var inputStates = ""
             var diagnosticPlayer: androidx.media3.ui.PlayerView? = null
             scenario.onActivity { activity ->
                 fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
@@ -188,6 +189,7 @@ class BackgroundPlaybackTest {
                 diagnosticPlayer = findPlayer(activity.window.decorView)
                 diagnosticPlayer?.setOnTouchListener { _, event ->
                     if (event.actionMasked == android.view.MotionEvent.ACTION_UP) touches.incrementAndGet()
+                    inputStates += " action=${event.actionMasked} controller=${diagnosticPlayer?.isControllerFullyVisible} time=${event.eventTime}"
                     false
                 }
             }
@@ -224,7 +226,7 @@ class BackgroundPlaybackTest {
                 if (originalState != visible) {
                     scenario.onActivity { diagnosticPlayer?.performClick() }
                     Thread.sleep(500)
-                    diagnostic += "\nrealTouchUps=${touches.get()} retainedViewShown=${diagnosticPlayer?.isShown} directClickVisible=${controllerVisible()}"
+                    diagnostic += "\nrealTouchUps=${touches.get()} inputStates=$inputStates retainedViewShown=${diagnosticPlayer?.isShown} directClickVisible=${controllerVisible()}"
                 }
                 assertTrue("Controller fully-visible state equals $visible\n$diagnostic", originalState == visible)
             }
