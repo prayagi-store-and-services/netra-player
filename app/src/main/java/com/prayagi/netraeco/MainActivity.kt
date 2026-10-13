@@ -408,12 +408,12 @@ private fun PlaySection() {
             }
             Switch(checked = privateHistory, onCheckedChange = { RecentFiles.setPrivate(context, it) })
         }
-        if (!privateHistory && recent.isNotEmpty()) {
+        if (!privateHistory && recent.isNotEmpty() && currentUri == null) {
             Text("Recent files", style = MaterialTheme.typography.titleMedium)
             OutlinedButton(onClick = { RecentFiles.clear(context, currentUri) }) { Text("Clear recent files") }
             recent.forEach { file ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(modifier = Modifier.weight(1f), onClick = {
+                    OutlinedButton(modifier = Modifier.weight(1f).padding(end = 8.dp), onClick = {
                         folderScope.launch {
                             val available = withContext(Dispatchers.IO) {
                                 try { context.contentResolver.openFileDescriptor(Uri.parse(file.uri), "r")?.use { true } ?: false } catch (_: Exception) { false }
