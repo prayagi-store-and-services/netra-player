@@ -413,7 +413,7 @@ private fun PlaySection() {
             OutlinedButton(onClick = { RecentFiles.clear(context, currentUri) }) { Text("Clear recent files") }
             recent.forEach { file ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(Modifier.weight(1f), onClick = {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = {
                         folderScope.launch {
                             val available = withContext(Dispatchers.IO) {
                                 try { context.contentResolver.openFileDescriptor(Uri.parse(file.uri), "r")?.use { true } ?: false } catch (_: Exception) { false }
