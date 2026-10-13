@@ -177,17 +177,39 @@ class BackgroundPlaybackTest {
                 }
                 Thread.sleep(200)
             }
-            shell("input tap 650 550")
-            if (find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } == null) shell("input tap 650 550")
+            fun controllerVisible(): Boolean {
+                var visible = false
+                scenario.onActivity { activity ->
+                    fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
+                        if (view is androidx.media3.ui.PlayerView) return view
+                        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findPlayer(view.getChildAt(i))?.let { return it }
+                        return null
+                    }
+                    visible = findPlayer(activity.window.decorView)?.isControllerFullyVisible == true
+                }
+                return visible
+            }
+            fun awaitController(visible: Boolean) {
+                val until = System.currentTimeMillis() + 1500
+                while (controllerVisible() != visible && System.currentTimeMillis() < until) Thread.sleep(50)
+                assertTrue("Controller fully-visible state equals $visible", controllerVisible() == visible)
+            }
+            if (!controllerVisible()) shell("input tap 650 550")
+            awaitController(true)
             awaitNode("Tracks visible in fullscreen") { it.text?.toString() == "Tracks" }
-            capture("fullscreen")
+            // Capture immediately after the settled state. Idle-wait capture can consume the auto-hide window.
+            shell("screencap -p /data/local/tmp/player-fullscreen.png")
+            awaitController(true)
             shell("input tap 650 550")
-            Thread.sleep(700)
+            awaitController(false)
+            val hiddenUntil = System.currentTimeMillis() + 1500
+            while (find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } != null && System.currentTimeMillis() < hiddenUntil) Thread.sleep(50)
+            shell("screencap -p /data/local/tmp/player-fullscreen-hidden.png")
             assertTrue("Tracks overlay hides with controller", find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } == null)
-            capture("fullscreen-hidden")
             shell("input tap 650 550")
+            awaitController(true)
             awaitNode("Tracks visible after tap") { it.text?.toString() == "Tracks" }
-            capture("fullscreen-shown")
+            shell("screencap -p /data/local/tmp/player-fullscreen-shown.png")
             shell("input keyevent KEYCODE_BACK")
             shell("cmd uimode night no")
             instrumentation.runOnMainSync {
