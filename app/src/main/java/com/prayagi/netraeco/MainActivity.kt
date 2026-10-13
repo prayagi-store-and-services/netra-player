@@ -522,7 +522,7 @@ private fun AboutSection() {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
                     Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Once a day the app adds 1 to a public counter so the Netra site can show roughly how many people use it. No ID, no location, no files.", style = MaterialTheme.typography.bodySmall)
+                    Text("Off by default. If you turn this on, the app adds 1 to daily and monthly public counters. No ID, location or files are included. The network service receives ordinary connection metadata. You can turn this off here.", style = MaterialTheme.typography.bodySmall)
                 }
                 Switch(checked = usage, onCheckedChange = { usage = it; UsagePing.setEnabled(context, it) })
             }

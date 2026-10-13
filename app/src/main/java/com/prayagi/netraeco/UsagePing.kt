@@ -14,23 +14,32 @@ import java.util.TimeZone
  * Anonymous active-user count. At most once per UTC day (and once per UTC month) the app adds +1 to a public counter
  * document in Firestore (netra_active/<appId>_<yyyyMMdd> and <appId>_<yyyyMM>). The request carries NO device id, install id,
  * account, location, IP-derived data we keep, or any app data: just the document name and "increment by 1".
- * The user can turn it off in Settings (default is on).
+ * Off until the user explicitly enables it in About. Legacy saved values are not treated as consent.
+ * An opt-out cannot recall a request already in progress.
  */
 object UsagePing {
     const val APP_ID = "netra-player"
     private const val PREFS = "netra_usage_count"
     private const val KEY_ENABLED = "enabled"
+    private const val KEY_CONSENT_VERSION = "consent_version"
+    private const val CONSENT_VERSION = 1
     private const val KEY_DAY = "last_day"
     private const val KEY_MONTH = "last_month"
     private const val COMMIT_URL = "https://firestore.googleapis.com/v1/projects/netra-ai-jan/databases/(default)/documents:commit"
     private const val DOC_ROOT = "projects/netra-ai-jan/databases/(default)/documents/netra_active/"
 
     fun isEnabled(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, true)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).let { prefs ->
+            hasConsent(prefs.getBoolean(KEY_ENABLED, false), prefs.getInt(KEY_CONSENT_VERSION, 0))
+        }
 
     fun setEnabled(context: Context, enabled: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_ENABLED, enabled).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_ENABLED, enabled)
+            .putInt(KEY_CONSENT_VERSION, CONSENT_VERSION).apply()
     }
+
+    internal fun hasConsent(enabled: Boolean, version: Int): Boolean =
+        enabled && version == CONSENT_VERSION
 
     fun dayId(now: Date = Date()): String = fmt("yyyyMMdd", now)
     fun monthId(now: Date = Date()): String = fmt("yyyyMM", now)
@@ -64,8 +73,8 @@ object UsagePing {
         val now = Date()
         val day = dayId(now)
         val month = monthId(now)
-        if (prefs.getString(KEY_DAY, "") != day && send(APP_ID + "_" + day)) prefs.edit().putString(KEY_DAY, day).apply()
-        if (prefs.getString(KEY_MONTH, "") != month && send(APP_ID + "_" + month)) prefs.edit().putString(KEY_MONTH, month).apply()
+        if (isEnabled(context) && prefs.getString(KEY_DAY, "") != day && send(APP_ID + "_" + day)) prefs.edit().putString(KEY_DAY, day).apply()
+        if (isEnabled(context) && prefs.getString(KEY_MONTH, "") != month && send(APP_ID + "_" + month)) prefs.edit().putString(KEY_MONTH, month).apply()
     }
 
     private fun send(docId: String): Boolean {
