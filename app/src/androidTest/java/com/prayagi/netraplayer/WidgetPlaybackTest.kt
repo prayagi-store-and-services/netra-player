@@ -72,7 +72,7 @@ class WidgetPlaybackTest {
                     scenario.onActivity { activity ->
                         activity.setContent {
                             Box(Modifier.fillMaxSize().padding(16.dp)) {
-                                androidx.compose.runtime.key(name) { AndroidView(Modifier.width(300.dp).height(180.dp), factory = { PlayerWidgetProvider.buildViews(it).apply(it, null) }) }
+                                androidx.compose.runtime.key(name) { AndroidView(modifier = Modifier.width(300.dp).height(180.dp), factory = { PlayerWidgetProvider.buildViews(it).apply(it, null) }) }
                             }
                         }
                     }
