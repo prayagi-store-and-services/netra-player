@@ -192,6 +192,19 @@ class BackgroundPlaybackTest {
             fun awaitController(visible: Boolean) {
                 val until = System.currentTimeMillis() + 1500
                 while (controllerVisible() != visible && System.currentTimeMillis() < until) Thread.sleep(50)
+                if (controllerVisible() != visible) {
+                    shell("screencap -p /data/local/tmp/player-failure.png")
+                    scenario.onActivity { activity ->
+                        fun dump(view: android.view.View, depth: Int = 0): String {
+                            val bounds = android.graphics.Rect()
+                            view.getGlobalVisibleRect(bounds)
+                            val state = if (view is androidx.media3.ui.PlayerView) " controllerFullyVisible=${view.isControllerFullyVisible} useController=${view.useController} playerBound=${view.player != null} hasWindowFocus=${view.hasWindowFocus()}" else ""
+                            return " ".repeat(depth) + "${view.javaClass.name} shown=${view.isShown} visibility=${view.visibility} clickable=${view.isClickable} bounds=$bounds$state\n" +
+                                if (view is android.view.ViewGroup) (0 until view.childCount).joinToString("") { dump(view.getChildAt(it), depth + 1) } else ""
+                        }
+                        File(context.getExternalFilesDir(null), "failure-ui.txt").writeText("lifecycle=${activity.lifecycle.currentState} activityFocus=${activity.hasWindowFocus()} fullscreen=${playerFullscreen.value}\n" + dump(activity.window.decorView))
+                    }
+                }
                 assertTrue("Controller fully-visible state equals $visible", controllerVisible() == visible)
             }
             if (!controllerVisible()) shell("input tap 650 550")
