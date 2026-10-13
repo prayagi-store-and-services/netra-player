@@ -12,8 +12,10 @@ class WidgetPlaybackReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action !in setOf(PLAY_PAUSE, NEXT)) return
         val pending = goAsync()
-        val future = MediaController.Builder(context, SessionToken(context,
-            android.content.ComponentName(context, PlaybackService::class.java))).buildAsync()
+        val app = context.applicationContext
+        val future = try { MediaController.Builder(app, SessionToken(app,
+            android.content.ComponentName(app, PlaybackService::class.java))).buildAsync() }
+        catch (_: Exception) { pending.finish(); return }
         future.addListener({
             try {
                 val controller = future.get()
@@ -26,7 +28,7 @@ class WidgetPlaybackReceiver : BroadcastReceiver() {
                 PlayerWidgetProvider.refresh(context)
             } catch (_: Exception) { /* No playback-success claim from command dispatch. */ }
             finally { MediaController.releaseFuture(future); pending.finish() }
-        }, ContextCompat.getMainExecutor(context))
+        }, ContextCompat.getMainExecutor(app))
     }
     companion object {
         const val PLAY_PAUSE = "com.prayagi.netraplayer.widget.PLAY_PAUSE"
