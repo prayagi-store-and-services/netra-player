@@ -55,6 +55,7 @@ jobs:
             app/build/test-results/testDebugUnitTest/*.xml
             app/build/ci-diagnostics/android-build.log
             app/build/ci-diagnostics/release-runtime-dependencies.txt
+            app/schemas/**/*.json
           if-no-files-found: warn
 
       - name: Upload test APK for device verification
