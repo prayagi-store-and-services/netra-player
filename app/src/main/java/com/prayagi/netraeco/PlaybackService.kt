@@ -9,6 +9,19 @@ import androidx.media3.session.MediaSessionService
 /** Owns playback beyond the activity. Media3 owns the foreground media notification. */
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
+    private val historyHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private fun saveHistory() {
+        val player = session?.player ?: return
+        val item = player.currentMediaItem ?: return
+        val uri = item.mediaId.takeIf { it.isNotEmpty() } ?: return
+        LastPlayed.save(this, uri, item.mediaMetadata.title?.toString() ?: "Selected file", player.currentPosition)
+    }
+    private val checkpoint = object : Runnable {
+        override fun run() {
+            if (session?.player?.isPlaying == true) saveHistory()
+            historyHandler.postDelayed(this, 15000)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -19,6 +32,12 @@ class PlaybackService : MediaSessionService() {
             setHandleAudioBecomingNoisy(true)
         }
         session = MediaSession.Builder(this, player).build()
+        RecentFiles.start(this)
+        player.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) { saveHistory() }
+            override fun onIsPlayingChanged(isPlaying: Boolean) { saveHistory() }
+        })
+        historyHandler.postDelayed(checkpoint, 15000)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
@@ -32,6 +51,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        historyHandler.removeCallbacks(checkpoint)
         session?.let {
             val item = it.player.currentMediaItem
             val uri = item?.mediaId?.takeIf { it.isNotEmpty() }
