@@ -177,6 +177,20 @@ class BackgroundPlaybackTest {
                 }
                 Thread.sleep(200)
             }
+            val touches = java.util.concurrent.atomic.AtomicInteger(0)
+            var diagnosticPlayer: androidx.media3.ui.PlayerView? = null
+            scenario.onActivity { activity ->
+                fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
+                    if (view is androidx.media3.ui.PlayerView) return view
+                    if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findPlayer(view.getChildAt(i))?.let { return it }
+                    return null
+                }
+                diagnosticPlayer = findPlayer(activity.window.decorView)
+                diagnosticPlayer?.setOnTouchListener { _, event ->
+                    if (event.actionMasked == android.view.MotionEvent.ACTION_UP) touches.incrementAndGet()
+                    false
+                }
+            }
             fun controllerVisible(): Boolean {
                 var visible = false
                 scenario.onActivity { activity ->
@@ -206,7 +220,13 @@ class BackgroundPlaybackTest {
                         diagnostic = "lifecycle=${activity.lifecycle.currentState} activityFocus=${activity.hasWindowFocus()} fullscreen=${playerFullscreen.value}\n" + dump(activity.window.decorView)
                     }
                 }
-                assertTrue("Controller fully-visible state equals $visible\n$diagnostic", controllerVisible() == visible)
+                val originalState = controllerVisible()
+                if (originalState != visible) {
+                    scenario.onActivity { diagnosticPlayer?.performClick() }
+                    Thread.sleep(500)
+                    diagnostic += "\nrealTouchUps=${touches.get()} retainedViewShown=${diagnosticPlayer?.isShown} directClickVisible=${controllerVisible()}"
+                }
+                assertTrue("Controller fully-visible state equals $visible\n$diagnostic", originalState == visible)
             }
             if (!controllerVisible()) shell("input tap 650 550")
             awaitController(true)
