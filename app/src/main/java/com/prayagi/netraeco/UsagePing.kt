@@ -59,7 +59,8 @@ object UsagePing {
 
     /** Call from a background thread. Sends the daily and monthly +1 at most once each; a failed send is retried next open. */
     fun pingIfDue(context: Context) {
-        if (!isEnabled(context)) return
+        RecentFiles.start(context)
+        if (!isEnabled(context) || RecentFiles.privatePlayback.value) return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val now = Date()
         val day = dayId(now)
