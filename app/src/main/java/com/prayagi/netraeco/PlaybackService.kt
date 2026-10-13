@@ -35,6 +35,9 @@ class PlaybackService : MediaSessionService() {
         RecentFiles.start(this)
         player.addListener(object : androidx.media3.common.Player.Listener {
             override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) { saveHistory() }
+            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                WidgetPlaybackState.update(player); PlayerWidgetProvider.refresh(this@PlaybackService)
+            }
             override fun onIsPlayingChanged(isPlaying: Boolean) { saveHistory() }
         })
         historyHandler.postDelayed(checkpoint, 15000)
@@ -60,6 +63,8 @@ class PlaybackService : MediaSessionService() {
             it.player.release()
             it.release()
         }
+        WidgetPlaybackState.reset()
+        PlayerWidgetProvider.refresh(this)
         session = null
         super.onDestroy()
     }
