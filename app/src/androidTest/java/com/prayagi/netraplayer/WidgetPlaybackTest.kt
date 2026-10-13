@@ -81,6 +81,12 @@ class WidgetPlaybackTest {
                 }
                 render("widget-playing")
                 RecentFiles.setPrivate(c, true)
+                RecentFiles.clear(c, null)
+                Thread.sleep(300)
+                assertTrue(RecentFiles.items.value.isEmpty())
+                // Cross the service's 15-second checkpoint with actual private playback running.
+                Thread.sleep(16000)
+                assertTrue("Private background checkpoint saves no filename or position", RecentFiles.items.value.isEmpty())
                 scenario.onActivity { activity ->
                     val view = PlayerWidgetProvider.buildViews(activity).apply(activity, null)
                     assertEquals("Private playback", view.findViewById<android.widget.TextView>(R.id.pw_title).text.toString())
