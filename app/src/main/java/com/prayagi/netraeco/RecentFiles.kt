@@ -44,22 +44,26 @@ object RecentFiles {
             try {
                 val database = Room.databaseBuilder(c, RecentDatabase::class.java, "recent-files.db").build()
                 db = database
-                val settings = c.getSharedPreferences(SETTINGS, 0)
-                if (!settings.getBoolean("legacy_migrated", false)) {
-                    val old = c.getSharedPreferences(LEGACY, 0)
-                    val uri = old.getString("uri", null)
-                    val name = old.getString("name", null)
-                    if (uri != null && name != null && RecentHistoryPolicy.accepts(uri)) {
-                        database.runInTransaction {
-                            database.recent().put(RecentFile(uri, name, old.getLong("pos", 0).coerceAtLeast(0), old.getLong("at", 0)))
-                            database.recent().trim()
-                        }
-                    }
-                    // Leave the source intact on failure; repeating a committed insert is idempotent.
-                    if (settings.edit().putBoolean("legacy_migrated", true).commit()) old.edit().clear().commit()
-                }
+                migrateLegacy(c, database)
                 publish(c)
             } catch (_: Exception) { /* Keep legacy data on failure; never log private file addresses. */ }
+        }
+    }
+
+    internal fun migrateLegacy(c: Context, database: RecentDatabase) {
+        val settings = c.getSharedPreferences(SETTINGS, 0)
+        if (!settings.getBoolean("legacy_migrated", false)) {
+            val old = c.getSharedPreferences(LEGACY, 0)
+            val uri = old.getString("uri", null)
+            val name = old.getString("name", null)
+            if (uri != null && name != null && RecentHistoryPolicy.accepts(uri)) {
+                database.runInTransaction {
+                    database.recent().put(RecentFile(uri, name, old.getLong("pos", 0).coerceAtLeast(0), old.getLong("at", 0)))
+                    database.recent().trim()
+                }
+            }
+            // Leave the source intact on failure; repeating a committed insert is idempotent.
+            if (settings.edit().putBoolean("legacy_migrated", true).commit()) old.edit().clear().commit()
         }
     }
 
