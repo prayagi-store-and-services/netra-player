@@ -49,6 +49,8 @@ class PlayerVisualTest {
                 activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
             }
             ins.waitForIdleSync()
+            clickLabel("en")
+            scenario.onActivity { org.junit.Assert.assertTrue(player.trackSelectionParameters.overrides.isEmpty()) }
             clickLabel("Subtitles off")
             scenario.onActivity { org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes) }
             clickLabel("Cancel")
@@ -59,14 +61,46 @@ class PlayerVisualTest {
                 it.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
             }
             ins.waitForIdleSync()
-            clickLabel("Subtitles off")
+            clickLabel("en")
             clickLabel("Use selected tracks")
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)
-                org.junit.Assert.assertTrue(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                org.junit.Assert.assertEquals(listOf(0), player.trackSelectionParameters.overrides[text]!!.trackIndices)
                 player.release()
             }
         }
+    }
+
+    @Test fun smallScreenManyLongTracksRemainScrollable() {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        fun shell(command: String) = android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand(command)).use { it.readBytes() }
+        shell("wm size 640x960")
+        shell("wm density 320")
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                lateinit var player: ExoPlayer
+                val audio = TrackGroup("audio", *(0 until 12).map { index ->
+                    Format.Builder().setSampleMimeType("audio/mp4a-latm").setLanguage("hi")
+                        .setLabel("Long track $index - original commentary and descriptive audio for the selected local file").build()
+                }.toTypedArray())
+                val tracks = Tracks(ImmutableList.of(Tracks.Group(audio, false, IntArray(12) { C.FORMAT_HANDLED }, BooleanArray(12))))
+                scenario.onActivity { activity ->
+                    player = ExoPlayer.Builder(activity).build()
+                    activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) {} } }
+                }
+                ins.waitForIdleSync()
+                shell("screencap -p /data/local/tmp/player-small-tracks-top.png")
+                repeat(8) { shell("input swipe 320 690 320 340 250"); ins.waitForIdleSync() }
+                shell("screencap -p /data/local/tmp/player-small-tracks-bottom.png")
+                clickLabel("Subtitles off")
+                clickLabel("Use selected tracks")
+                scenario.onActivity {
+                    org.junit.Assert.assertTrue(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                    player.release()
+                }
+            }
+        } finally { shell("wm size reset"); shell("wm density reset") }
     }
 
     @Test fun homeAndTrackDialog() {
