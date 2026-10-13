@@ -16,7 +16,7 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class PlayerVisualTest {
-    private fun clickLabel(text: String) {
+    private fun clickLabel(text: String, scroll: Boolean = false) {
         val ins = InstrumentationRegistry.getInstrumentation()
         fun find(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
             if (node == null) return null
@@ -33,6 +33,16 @@ class PlayerVisualTest {
                 // Wait for the selection accessibility event/recomposition before Apply.
                 ins.uiAutomation.waitForIdle(300, 5000)
                 return
+            }
+            if (scroll) {
+                fun move(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+                    if (node == null) return false
+                    if (node.isScrollable && node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+                    for (i in 0 until node.childCount) if (move(node.getChild(i))) return true
+                    return false
+                }
+                move(ins.uiAutomation.rootInActiveWindow)
+                ins.uiAutomation.waitForIdle(300, 5000)
             }
             Thread.sleep(100)
         }
@@ -94,9 +104,8 @@ class PlayerVisualTest {
                 }
                 ins.waitForIdleSync()
                 shell("screencap -p /data/local/tmp/player-small-tracks-top.png")
-                repeat(8) { shell("input swipe 320 690 320 340 250"); ins.waitForIdleSync() }
+                clickLabel("Subtitles off", scroll = true)
                 shell("screencap -p /data/local/tmp/player-small-tracks-bottom.png")
-                clickLabel("Subtitles off")
                 clickLabel("Use selected tracks")
                 scenario.onActivity {
                     org.junit.Assert.assertTrue(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
