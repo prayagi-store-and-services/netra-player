@@ -12,6 +12,8 @@ class RecentFilesTest {
     }
     @Test fun boundedLocalHistoryPrivateAndClearSuppression() {
         val c = InstrumentationRegistry.getInstrumentation().targetContext
+        c.stopService(android.content.Intent(c, PlaybackService::class.java))
+        Thread.sleep(300)
         RecentFiles.start(c)
         RecentFiles.setPrivate(c, false)
         RecentFiles.clear(c, null)
@@ -33,7 +35,7 @@ class RecentFilesTest {
         assertTrue("Clear does not recreate currently playing history", RecentFiles.items.value.isEmpty())
         RecentFiles.selected(c)
         RecentFiles.save(c, "content://fixture/24", "File 24", -1)
-        await { RecentFiles.items.value.size == 1 }
+        await { RecentFiles.items.value.size == 1 && RecentFiles.items.value.first().positionMs == 0L }
         assertEquals(0L, RecentFiles.items.value.first().positionMs)
         RecentFiles.remove(c, "content://fixture/24", "content://fixture/24")
         await { RecentFiles.items.value.isEmpty() }
