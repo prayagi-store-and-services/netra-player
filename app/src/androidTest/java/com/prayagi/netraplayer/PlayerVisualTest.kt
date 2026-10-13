@@ -16,6 +16,105 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class PlayerVisualTest {
+    private fun clickLabel(text: String, scroll: Boolean = false) {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        fun find(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+            if (node == null) return null
+            if (node.text?.toString() == text) return node
+            for (i in 0 until node.childCount) find(node.getChild(i))?.let { return it }
+            return null
+        }
+        val end = System.currentTimeMillis() + 10000
+        while (System.currentTimeMillis() < end) {
+            var node = find(ins.uiAutomation.rootInActiveWindow)
+            while (node != null && !node.isClickable) node = node.parent
+            if (node?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true) {
+                ins.waitForIdleSync()
+                // Wait for the selection accessibility event/recomposition before Apply.
+                ins.uiAutomation.waitForIdle(300, 5000)
+                return
+            }
+            if (scroll) {
+                fun move(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+                    if (node == null) return false
+                    if (node.isScrollable && node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+                    for (i in 0 until node.childCount) if (move(node.getChild(i))) return true
+                    return false
+                }
+                move(ins.uiAutomation.rootInActiveWindow)
+                ins.uiAutomation.waitForIdle(300, 5000)
+            }
+            Thread.sleep(100)
+        }
+        throw AssertionError("Missing clickable $text")
+    }
+
+    @Test fun trackSelectionRequiresApplyAndCancelPreservesPlayback() {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var player: ExoPlayer
+            var closed = false
+            val text = TrackGroup("text", Format.Builder().setSampleMimeType("application/x-subrip").setLanguage("en").build())
+            val tracks = Tracks(ImmutableList.of(Tracks.Group(text, false, intArrayOf(C.FORMAT_HANDLED), booleanArrayOf(false))))
+            scenario.onActivity { activity ->
+                player = ExoPlayer.Builder(activity).build()
+                activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+            }
+            ins.waitForIdleSync()
+            clickLabel("en")
+            scenario.onActivity { org.junit.Assert.assertTrue(player.trackSelectionParameters.overrides.isEmpty()) }
+            clickLabel("Subtitles off")
+            scenario.onActivity { org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes) }
+            clickLabel("Cancel")
+            scenario.onActivity {
+                org.junit.Assert.assertTrue(closed)
+                org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                closed = false
+                it.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+            }
+            ins.waitForIdleSync()
+            clickLabel("en")
+            clickLabel("Use selected tracks")
+            scenario.onActivity {
+                org.junit.Assert.assertTrue(closed)
+                org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                org.junit.Assert.assertTrue("Explicit subtitle override applied", player.trackSelectionParameters.overrides.containsKey(text))
+                org.junit.Assert.assertEquals(listOf(0), player.trackSelectionParameters.overrides[text]!!.trackIndices)
+                player.release()
+            }
+        }
+    }
+
+    @Test fun smallScreenManyLongTracksRemainScrollable() {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        fun shell(command: String) = android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand(command)).use { it.readBytes() }
+        shell("wm size 640x960")
+        shell("wm density 320")
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                lateinit var player: ExoPlayer
+                val audio = TrackGroup("audio", *(0 until 12).map { index ->
+                    Format.Builder().setSampleMimeType("audio/mp4a-latm").setLanguage("hi")
+                        .setLabel("Long track $index - original commentary and descriptive audio for the selected local file").build()
+                }.toTypedArray())
+                val tracks = Tracks(ImmutableList.of(Tracks.Group(audio, false, IntArray(12) { C.FORMAT_HANDLED }, BooleanArray(12))))
+                scenario.onActivity { activity ->
+                    player = ExoPlayer.Builder(activity).build()
+                    activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) {} } }
+                }
+                ins.waitForIdleSync()
+                shell("screencap -p /data/local/tmp/player-small-tracks-top.png")
+                clickLabel("Subtitles off", scroll = true)
+                shell("screencap -p /data/local/tmp/player-small-tracks-bottom.png")
+                clickLabel("Use selected tracks")
+                scenario.onActivity {
+                    org.junit.Assert.assertTrue(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                    player.release()
+                }
+            }
+        } finally { shell("wm size reset"); shell("wm density reset") }
+    }
+
     @Test fun homeAndTrackDialog() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         android.os.ParcelFileDescriptor.AutoCloseInputStream(

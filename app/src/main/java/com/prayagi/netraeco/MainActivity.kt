@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -367,6 +369,7 @@ private fun PlaySection() {
     val openPicker = {
         try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
     }
+    var controllerVisible by remember { mutableStateOf(true) }
     val playerView: @Composable (Modifier) -> Unit = { mod ->
         Box(mod.background(Color.Black)) {
             AndroidView(
@@ -376,6 +379,9 @@ private fun PlaySection() {
                         this.player = player
                         useController = true
                         controllerShowTimeoutMs = 4000
+                        setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+                            controllerVisible = visibility == android.view.View.VISIBLE
+                        })
                         setShowPreviousButton(false); setShowNextButton(false)
                         setShowRewindButton(true); setShowFastForwardButton(true)
                         isFocusable = true; isFocusableInTouchMode = true
@@ -383,12 +389,14 @@ private fun PlaySection() {
                 },
                 update = { v -> v.setFullscreenButtonClickListener { on -> setFull(on) } }
             )
-            OutlinedButton(
-                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-                onClick = { choosingTracks = true }
-            ) { Text("Tracks", color = Color.White) }
-            if (!hasVideo) {
-                Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (!full || controllerVisible) {
+                OutlinedButton(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    onClick = { choosingTracks = true }
+                ) { Text("Tracks", color = Color.White) }
+            }
+            if (!hasVideo && (!full || controllerVisible)) {
+                Column(Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 20.dp, end = 112.dp), horizontalAlignment = Alignment.Start) {
                     Text("Audio", color = Color(0xFF4DB6AC), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(title ?: "", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                 }
@@ -539,6 +547,13 @@ internal fun TrackChoiceDialog(
     tracks: androidx.media3.common.Tracks,
     onClose: () -> Unit
 ) {
+    // Selection stays local until Apply; dismissing the sheet changes no playback state.
+    var pending by remember(tracks) { mutableStateOf(player.trackSelectionParameters) }
+    val select: (Int, androidx.media3.common.TrackGroup?, Int?, Boolean) -> Unit = { type, group, index, off ->
+        val builder = pending.buildUpon().clearOverridesOfType(type).setTrackTypeDisabled(type, off)
+        if (group != null && index != null) builder.setOverrideForType(androidx.media3.common.TrackSelectionOverride(group, index))
+        pending = builder.build()
+    }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onClose,
         title = { Text("Audio and subtitles") },
@@ -547,6 +562,8 @@ internal fun TrackChoiceDialog(
                 listOf(androidx.media3.common.C.TRACK_TYPE_AUDIO to "Audio", androidx.media3.common.C.TRACK_TYPE_TEXT to "Subtitles").forEach { (type, heading) ->
                     Text(heading, fontWeight = FontWeight.Bold)
                     val groups = tracks.groups.filter { it.type == type }
+                    val disabled = type in pending.disabledTrackTypes
+                    val trackOverride = pending.overrides.values.firstOrNull { it.type == type }
                     var offered = 0
                     groups.forEach { group ->
                         for (index in 0 until group.length) {
@@ -554,35 +571,32 @@ internal fun TrackChoiceDialog(
                                 offered++
                                 val format = group.getTrackFormat(index)
                                 val label = trackChoiceLabel(format.label, format.language, offered)
-                                val selected = group.isTrackSelected(index)
-                                OutlinedButton(onClick = {
-                                    player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                                        .setTrackTypeDisabled(type, false)
-                                        .setOverrideForType(androidx.media3.common.TrackSelectionOverride(group.mediaTrackGroup, index))
-                                        .build()
-                                    onClose()
-                                }) { Text((if (selected) "Selected: " else "") + label) }
+                                val selected = !disabled && trackOverride != null && trackOverride.mediaTrackGroup == group.mediaTrackGroup && index in trackOverride.trackIndices
+                                TrackChoiceRow(label, selected) { select(type, group.mediaTrackGroup, index, false) }
                             }
                         }
                     }
                     if (offered == 0) Text("Unavailable: this file has no supported $heading track.")
-                    OutlinedButton(onClick = {
-                        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                            .clearOverridesOfType(type).setTrackTypeDisabled(type, false).build()
-                        onClose()
-                    }) { Text("Automatic $heading") }
+                    TrackChoiceRow("Automatic $heading", !disabled && trackOverride == null) { select(type, null, null, false) }
                     if (type == androidx.media3.common.C.TRACK_TYPE_TEXT) {
-                        OutlinedButton(onClick = {
-                            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                                .clearOverridesOfType(type).setTrackTypeDisabled(type, true).build()
-                            onClose()
-                        }) { Text("Subtitles off") }
+                        TrackChoiceRow("Subtitles off", disabled) { select(type, null, null, true) }
                     }
                 }
             }
         },
-        confirmButton = { androidx.compose.material3.TextButton(onClick = onClose) { Text("Close") } }
+        confirmButton = { Button(onClick = { player.trackSelectionParameters = pending; onClose() }) { Text("Use selected tracks") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onClose) { Text("Cancel") } }
     )
+}
+
+@Composable
+private fun TrackChoiceRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = onClick)
+            Text(label, modifier = Modifier.weight(1f).padding(end = 8.dp), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 }
 
 internal fun trackChoiceLabel(label: String?, language: String?, number: Int): String {
