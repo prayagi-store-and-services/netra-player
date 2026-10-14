@@ -173,18 +173,21 @@ object Net {
     }
 
     /** Downloads the APK and checks size and SHA-256. The file is deleted and an error thrown if anything is off. */
-    fun download(context: Context, app: CatalogApp, release: LatestRelease, onProgress: ((Long, Long, Long?) -> Unit)? = null): File {
+    @Synchronized
+    fun download(context: Context, app: CatalogApp, release: LatestRelease, backgroundAllowed: (() -> Boolean)? = null, onProgress: ((Long, Long, Long?) -> Unit)? = null): File {
         activeDownloads.incrementAndGet()
         try {
-            return downloadInternal(context, app, release, onProgress)
+            DownloadCenter.rememberRelease(context, app, release)
+            return downloadInternal(context, app, release, onProgress, backgroundAllowed)
         } finally {
             activeDownloads.decrementAndGet()
         }
     }
 
-    private fun downloadInternal(context: Context, app: CatalogApp, release: LatestRelease, onProgress: ((Long, Long, Long?) -> Unit)?): File {
+    private fun downloadInternal(context: Context, app: CatalogApp, release: LatestRelease, onProgress: ((Long, Long, Long?) -> Unit)?, backgroundAllowed: (() -> Boolean)?): File {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val file = File(dir, "${app.id}-${release.tag}.apk")
+        if (backgroundAllowed?.invoke() == false) throw IllegalStateException("Background download paused by device policy.")
         val partial = File.createTempFile("pending-", ".part", dir)
         val c = open(release.apkUrl)
         try {
@@ -193,6 +196,7 @@ object Net {
             var lastReport = 0L
             c.inputStream.use { input ->
                 ApkIntegrity.copyVerified(input, partial, release.size, release.sha256) { total ->
+                    if (backgroundAllowed?.invoke() == false) throw IllegalStateException("Background download paused by device policy.")
                     val now = System.currentTimeMillis()
                     tracker.add(now, total)
                     if (onProgress != null && now - lastReport >= 300L) {
