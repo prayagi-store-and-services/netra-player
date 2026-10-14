@@ -9,7 +9,7 @@ adb shell dumpsys activity lastanr > app/build/device-diagnostics/lastanr-before
 adb shell dumpsys meminfo > app/build/device-diagnostics/meminfo-before.txt 2>&1 || true
 adb logcat -b all -v threadtime > app/build/device-diagnostics/logcat.txt 2>&1 &
 logcat_pid=$!
-for name in a-video.mp4 b-video.mp4; do
+for name in a-video.mp4 b-video.mp4 library-tone.mp3; do
   adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/PlayerFixture/$name
 done
 test_status=0
