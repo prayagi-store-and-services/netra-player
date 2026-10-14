@@ -90,6 +90,7 @@ jobs:
         with:
           name: Player-device-evidence
           path: |
+            app/build/device-diagnostics/
             app/build/device-screenshots/
             app/build/reports/androidTests/
           if-no-files-found: warn
