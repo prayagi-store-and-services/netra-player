@@ -44,6 +44,7 @@
             <intent-filter><action android:name="androidx.media3.session.MediaSessionService" /></intent-filter>
         </service>
 
+        <receiver android:name=".WidgetPlaybackReceiver" android:exported="false" />
         <receiver
             android:name=".PlayerWidgetProvider"
             android:exported="true">

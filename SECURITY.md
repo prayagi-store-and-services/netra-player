@@ -1,3 +1,9 @@
+## Draft recent-files phase (unreleased)
+
+Recent file names, addresses and positions move into a private on-device Room database, capped at 20 records. No cloud backup is enabled. Legacy resume is migrated once. Private playback history disables writes and hides widget history; it also pauses anonymous usage counting without changing the existing default. It does not block update internet access, and is not a full offline mode. Clear/remove suppress re-saving the current item until another explicit selection. Background playback checkpoints history through the service. No media addresses or names are added to logs.
+
+Verification pending: generated Room schema and dependency audit; device history/privacy/migration/restart and UI gates; widget control commands are explicit immutable intents to a non-exported receiver and the existing MediaSession, but pinned-widget function and pixels are unverified. Do not describe this phase as shipped or privacy-verified.
+
 # Security notes - Netra Player
 
 ## User-selected SRT subtitles (v1.1.14)
