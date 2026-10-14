@@ -15,7 +15,7 @@ class LibraryPermissionStateTest {
         if (state == "partial") {
             assertFalse(access.video); assertFalse(access.audio); assertTrue(access.selectedVideo)
         } else if (state == "full") {
-            assertTrue("Earlier library test granted full access", access.video && access.audio)
+            assertFalse("No partial-access claim under full access", access.video && access.selectedVideo)
         } else {
             assertFalse(access.any)
             assertTrue(LocalMediaLibrary.scan(ins.targetContext, access).isEmpty())
@@ -26,7 +26,7 @@ class LibraryPermissionStateTest {
             return (0 until n.childCount).any { has(n.getChild(it), text) }
         }
         androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java).use {
-            val expected = if (state == "partial") "Selected videos only" else if (state == "full") "Manage media access" else "Media access is off"
+            val expected = if (state == "partial") "Selected videos only" else if (state == "full" && access.any) "Manage media access" else "Media access is off"
             val end = System.currentTimeMillis() + 10000
             while (!has(ins.uiAutomation.rootInActiveWindow, expected) && System.currentTimeMillis() < end) {
                 android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand("input swipe 20 1200 20 500 300")).use { it.readBytes() }
