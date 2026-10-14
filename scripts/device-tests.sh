@@ -14,6 +14,10 @@ for name in a-video.mp4 b-video.mp4; do
 done
 test_status=0
 gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace || test_status=$?
+# Gradle may remove instrumentation APK after connected tests; install exact built APKs.
+adb install -r app/build/outputs/apk/debug/app-debug.apk || test_status=1
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk || test_status=1
+mkdir -p app/build/device-diagnostics
 # Host-driven revocation kills the old process before fresh instrumentation starts.
 PKG=com.prayagi.netraplayer
 TEST="$PKG.test/androidx.test.runner.AndroidJUnitRunner"
@@ -23,9 +27,9 @@ done
 adb shell pm grant "$PKG" android.permission.READ_MEDIA_VISUAL_USER_SELECTED
 for state in partial revoked; do
   if [ "$state" = revoked ]; then adb shell pm revoke "$PKG" android.permission.READ_MEDIA_VISUAL_USER_SELECTED; fi
-  adb shell am instrument -w -e class com.prayagi.netraplayer.LibraryPermissionStateTest -e libraryState "$state" "$TEST" > /tmp/library-$state-result.txt
-  cat /tmp/library-$state-result.txt
-  grep -q 'OK (1 test)' /tmp/library-$state-result.txt || test_status=1
+  adb shell am instrument -w -e class com.prayagi.netraplayer.LibraryPermissionStateTest -e libraryState "$state" "$TEST" > app/build/device-diagnostics/library-$state-result.txt
+  cat app/build/device-diagnostics/library-$state-result.txt
+  grep -q 'OK (1 test)' app/build/device-diagnostics/library-$state-result.txt || test_status=1
 done
 adb shell dumpsys activity lastanr > app/build/device-diagnostics/lastanr-after.txt 2>&1 || true
 adb shell dumpsys activity activities > app/build/device-diagnostics/activities-after.txt 2>&1 || true
