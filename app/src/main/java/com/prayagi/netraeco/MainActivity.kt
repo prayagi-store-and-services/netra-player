@@ -396,20 +396,6 @@ private fun PlaySection() {
         }
     }
     if (!full) {
-        LocalLibraryCard { files, index ->
-            folderScope.launch {
-            try {
-                val selected = files[index]
-                withContext(Dispatchers.IO) { context.contentResolver.openFileDescriptor(Uri.parse(selected.uri), "r")?.use { } ?: throw java.io.FileNotFoundException() }
-                error = null
-                title = selected.name
-                currentUri = selected.uri
-                player.setMediaItems(files.map { file -> MediaItem.Builder().setUri(file.uri).setMediaId(file.uri)
-                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(file.name).build()).build() }, index, 0)
-                player.prepare(); player.playWhenReady = true
-            } catch (_: Exception) { error = "This file is unavailable. Refresh the library or manage media access." }
-            }
-        }
         OutlinedButton(onClick = {
             try { folderPicker.launch(null) }
             catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
@@ -465,6 +451,20 @@ private fun PlaySection() {
         }
     }
     if (!full) {
+        LocalLibraryCard { files, index ->
+            folderScope.launch {
+            try {
+                val selected = files[index]
+                withContext(Dispatchers.IO) { context.contentResolver.openFileDescriptor(Uri.parse(selected.uri), "r")?.use { } ?: throw java.io.FileNotFoundException() }
+                error = null
+                title = selected.name
+                currentUri = selected.uri
+                player.setMediaItems(files.map { file -> MediaItem.Builder().setUri(file.uri).setMediaId(file.uri)
+                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(file.name).build()).build() }, index, 0)
+                player.prepare(); player.playWhenReady = true
+            } catch (_: Exception) { error = "This file is unavailable. Refresh the library or manage media access." }
+            }
+        }
         if (folderFiles.isNotEmpty()) {
             Text("Folder files: ${folderFiles.size}")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
