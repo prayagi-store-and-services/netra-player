@@ -10,14 +10,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.Dispatchers
@@ -73,19 +76,30 @@ internal fun LocalLibraryCard(onPlay: (List<LibraryMedia>, Int) -> Unit) {
                 val matching = files.filter { it.video == video && (search.isBlank() || it.name.contains(search, true)) }
                 if (!busy && matching.isEmpty()) Text("No permitted ${if (video) "videos" else "MP3 files"} found.")
                 if (folder == null) {
-                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
-                        items(matching.groupBy { it.folder }.toSortedMap().entries.toList(), key = { it.key }) { entry ->
-                            ListItem(headlineContent = { Text(entry.key) }, supportingContent = { Text("${entry.value.size} files") }, modifier = Modifier.clickable { folder = entry.key })
+                    LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(matching.groupBy { it.folderKey }.entries.sortedBy { it.value.first().folder }, key = { it.key }) { entry ->
+                            OutlinedCard(onClick = { folder = entry.key }, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    LibraryThumbnail(entry.value.first())
+                                    Text(entry.value.first().folder, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text("${entry.value.size} ${if (video) "videos" else "MP3 files"}", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
                         }
                     }
                 } else {
                     OutlinedButton(onClick = { folder = null }) { Text("All folders") }
-                    val queue = matching.filter { it.folder == folder }
-                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                    val queue = matching.filter { it.folderKey == folder }
+                    Text(queue.firstOrNull()?.folder.orEmpty(), style = MaterialTheme.typography.titleSmall)
+                    LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(queue, key = { it.uri }) { file ->
-                            ListItem(headlineContent = { Text(file.name, maxLines = 2) }, supportingContent = {
-                                Text(LastPlayed.formatPosition(file.durationMs) + if (file.video && file.width > 0 && file.height > 0) " | ${file.width}x${file.height}" else "")
-                            }, leadingContent = { LibraryThumbnail(file) }, modifier = Modifier.clickable { onPlay(queue, queue.indexOf(file)) })
+                            OutlinedCard(onClick = { onPlay(queue, queue.indexOf(file)) }, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    LibraryThumbnail(file)
+                                    Text(file.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(LastPlayed.formatPosition(file.durationMs) + if (file.video && file.width > 0 && file.height > 0) " | ${file.width}x${file.height}" else "", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
                         }
                     }
                 }
@@ -107,8 +121,8 @@ private fun LibraryThumbnail(file: LibraryMedia) {
         }
     }
     val image = bitmap
-    if (image != null) Image(image.asImageBitmap(), contentDescription = null, modifier = Modifier.size(72.dp, 48.dp))
-    else Text(if (file.video) "Video" else "MP3", modifier = Modifier.width(72.dp))
+    if (image != null) Image(image.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f), contentScale = ContentScale.Fit)
+    else Text(if (file.video) "Video" else "MP3", modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).padding(8.dp))
 }
 
 private object MediaStoreThumbnail {
