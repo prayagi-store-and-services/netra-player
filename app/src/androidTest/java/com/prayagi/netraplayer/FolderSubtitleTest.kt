@@ -154,7 +154,16 @@ class FolderSubtitleTest {
             click("Size: Crop"); node("Size: Stretch")
             assertTrue("Stretch maps to Media3 fill", currentResize() == 3)
             capture("video-stretch")
-            click("Size: Stretch"); node("Size: Fit")
+            click("Size: Stretch")
+            // Compose may relayout the scrolling player between AX lookup and activation.
+            // Recover one stale/no-op accessibility activation, keeping actual mode/label gates.
+            if (currentResize() == 3) {
+                val fresh = node("Size: Stretch")
+                var target: AccessibilityNodeInfo? = fresh
+                while (target != null && !target.isClickable) target = target.parent
+                assertTrue("Fresh Stretch action accepted", target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            }
+            node("Size: Fit")
             assertTrue("Cycle returns to undistorted fit", currentResize() == 0)
             capture("video-fit")
             capture("subtitle")
