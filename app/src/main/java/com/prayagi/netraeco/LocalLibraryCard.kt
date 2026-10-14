@@ -29,7 +29,7 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun LocalLibraryCard(onPlay: (List<LibraryMedia>, Int) -> Unit) {
     val c = LocalContext.current
-    val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     var access by remember { mutableStateOf(LocalMediaLibrary.access(c)) }
     var refresh by remember { mutableIntStateOf(0) }
     var files by remember { mutableStateOf<List<LibraryMedia>>(emptyList()) }
@@ -50,6 +50,7 @@ internal fun LocalLibraryCard(onPlay: (List<LibraryMedia>, Int) -> Unit) {
         if (access.any) {
             busy = true; error = null
             try { files = withContext(Dispatchers.IO) { LocalMediaLibrary.scan(c, access) } }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
             catch (_: SecurityException) { access = LocalMediaLibrary.access(c); error = "Media access changed. Allow access or use the file picker." }
             catch (_: IllegalStateException) { error = "Over 2000 media files. Use Open folder below to browse a smaller collection." }
             catch (_: Exception) { error = "Local library unavailable. Refresh or use the file picker." }
