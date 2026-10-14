@@ -8,7 +8,7 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 
-data class LibraryMedia(val uri: String, val name: String, val folder: String, val durationMs: Long, val width: Int, val height: Int, val video: Boolean)
+data class LibraryMedia(val uri: String, val name: String, val folder: String, val durationMs: Long, val width: Int, val height: Int, val video: Boolean, val folderKey: String = folder)
 
 internal data class LibraryAccess(val video: Boolean, val audio: Boolean, val selectedVideo: Boolean) {
     val any: Boolean get() = video || audio || selectedVideo
@@ -43,7 +43,7 @@ internal object LocalMediaLibrary {
                     val path = cursor.getString(3).orEmpty()
                     // Do not retain absolute storage paths, including on pre-scoped-storage Android.
                     val folder = if (relative) path.trimEnd('/').ifBlank { "Shared media" } else path.substringBeforeLast('/', "").substringAfterLast('/').ifBlank { "Shared media" }
-                    result += LibraryMedia(uri = ContentUris.withAppendedId(base, cursor.getLong(0)).toString(), name = cursor.getString(1) ?: "Unnamed media", durationMs = cursor.getLong(2).coerceAtLeast(0), folder = folder, width = if (video) cursor.getInt(4) else 0, height = if (video) cursor.getInt(5) else 0, video = video)
+                    result += LibraryMedia(uri = ContentUris.withAppendedId(base, cursor.getLong(0)).toString(), name = cursor.getString(1) ?: "Unnamed media", durationMs = cursor.getLong(2).coerceAtLeast(0), folder = folder, width = if (video) cursor.getInt(4) else 0, height = if (video) cursor.getInt(5) else 0, video = video, folderKey = java.security.MessageDigest.getInstance("SHA-256").digest(path.substringBeforeLast('/', "").toByteArray()).joinToString("") { "%02x".format(it) })
                 }
             }
         }
