@@ -25,4 +25,7 @@ adb pull /data/local/tmp/player-folder-failure.xml app/build/device-screenshots/
 for name in gate-before gate-after gate-update gate-about gate-rollback; do
   adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
 done
+for name in library-folders library-media library-failure; do
+  adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
+done
 exit $test_status
