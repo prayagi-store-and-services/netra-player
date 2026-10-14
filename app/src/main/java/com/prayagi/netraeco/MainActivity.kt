@@ -388,10 +388,10 @@ private fun PlaySection() {
                 }
             )
             Row(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (hasVideo) OutlinedButton(onClick = { videoFit = videoFit.next() }) {
+                if (hasVideo) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { videoFit = videoFit.next() }) {
                     Text("Size: ${videoFit.label}", color = Color.White)
                 }
-                OutlinedButton(onClick = { choosingTracks = true }) { Text("Tracks", color = Color.White) }
+                OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { choosingTracks = true }) { Text("Tracks", color = Color.White) }
             }
             if (!hasVideo) {
                 Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
