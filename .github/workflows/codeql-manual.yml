@@ -1,0 +1,80 @@
+name: CodeQL manual Android build
+on:
+  # Keep feature-branch validation alongside main scans.
+  push:
+    branches: [main, player-codeql-manual-build]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 2 * * 3'
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  kotlin:
+    name: Analyze Java and Kotlin with Gradle 9.3.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.3.1
+          cache-disabled: true
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Initialize Kotlin analysis
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: manual
+      - name: Generate CI-only debug key
+        run: >-
+          keytool -genkeypair -keystore debug.keystore -storepass android
+          -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048
+          -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -noprompt
+      - name: Explicit clean Android build for extraction
+        run: gradle --no-daemon clean :app:assembleDebug --stacktrace
+      - name: Analyze and publish after approved advanced setup activation
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:java-kotlin
+          # Publish main/manual/scheduled scans; keep unmerged validation unpublished.
+          upload: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && 'always' || 'never' }}
+          upload-database: false
+          output: codeql-results
+      - name: Preserve analysis evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Player-CodeQL-Kotlin-SARIF
+          path: codeql-results/*.sarif
+          if-no-files-found: error
+  actions:
+    name: Analyze GitHub Actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: actions
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:actions
+          # Publish main/manual/scheduled scans; keep unmerged validation unpublished.
+          upload: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && 'always' || 'never' }}
+          upload-database: false
+          output: codeql-results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Player-CodeQL-Actions-SARIF
+          path: codeql-results/*.sarif
+          if-no-files-found: error
