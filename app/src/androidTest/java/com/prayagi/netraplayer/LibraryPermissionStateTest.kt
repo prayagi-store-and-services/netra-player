@@ -25,6 +25,7 @@ class LibraryPermissionStateTest {
             if (n.text?.toString()?.contains(text) == true) return true
             return (0 until n.childCount).any { has(n.getChild(it), text) }
         }
+        ins.runOnMainSync { playerFullscreen.value = false }
         androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java).use {
             val expected = if (state == "partial") "Selected videos only" else if (state == "full" && access.any) "Manage media access" else "Media access is off"
             val end = System.currentTimeMillis() + 10000
@@ -32,8 +33,9 @@ class LibraryPermissionStateTest {
                 android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand("input swipe 20 1200 20 500 300")).use { it.readBytes() }
                 Thread.sleep(250)
             }
-            assertTrue("Permission state disclosed: $state", has(ins.uiAutomation.rootInActiveWindow, expected))
+
             android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand("screencap -p /data/local/tmp/player-library-$state.png")).use { it.readBytes() }
+            assertTrue("Permission state disclosed: $state", has(ins.uiAutomation.rootInActiveWindow, expected))
         }
     }
 }
