@@ -35,7 +35,10 @@ class FolderSubtitleTest {
             Thread.sleep(300)
         }
         shell("screencap -p /data/local/tmp/player-folder-failure.png")
-        shell("uiautomator dump /data/local/tmp/player-folder-failure.xml")
+        fun dump(n: AccessibilityNodeInfo?, depth: Int = 0): String = if (n == null) "" else
+            " ".repeat(depth) + "${n.className} text=${n.text} desc=${n.contentDescription}\n" +
+                (0 until n.childCount).joinToString("") { dump(n.getChild(it), depth + 1) }
+        java.io.File(ins.targetContext.getExternalFilesDir(null), "folder-failure-ui.txt").writeText(dump(ins.uiAutomation.rootInActiveWindow))
         throw AssertionError("Missing $text")
     }
     private fun click(text: String) {
@@ -141,7 +144,11 @@ class FolderSubtitleTest {
             }
             node("Size: Fit")
             assertTrue("Default fit preserves the full picture", currentResize() == 0)
-            click("Size: Fit"); node("Size: Crop")
+            capture("video-fit-before")
+            click("Size: Fit")
+            java.io.File(ins.targetContext.getExternalFilesDir(null), "resize-diagnostic.txt").writeText("After Fit click resizeMode=${currentResize()}")
+            capture("video-after-fit-click")
+            node("Size: Crop")
             assertTrue("Crop maps to Media3 zoom", currentResize() == 4)
             capture("video-crop")
             click("Size: Crop"); node("Size: Stretch")
