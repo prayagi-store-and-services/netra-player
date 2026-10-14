@@ -1,5 +1,8 @@
 name: CodeQL explicit Android build (draft validation)
 on:
+  # Feature-branch push proves full baseline before any main merge/settings switch.
+  push:
+    branches: [player-codeql-manual-build]
   pull_request:
     branches: [main]
   workflow_dispatch:
