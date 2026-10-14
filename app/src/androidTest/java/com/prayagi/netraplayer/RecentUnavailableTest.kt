@@ -29,7 +29,7 @@ class RecentUnavailableTest {
         await { RecentFiles.items.value.size == 1 }
         fun find(n: AccessibilityNodeInfo?, text: String): AccessibilityNodeInfo? {
             if (n == null) return null
-            if (n.text?.contains(text) == true) return n
+            if (if (text == "Remove") n.text?.toString() == text else n.text?.contains(text) == true) return n
             for (i in 0 until n.childCount) find(n.getChild(i), text)?.let { return it }
             return null
         }
