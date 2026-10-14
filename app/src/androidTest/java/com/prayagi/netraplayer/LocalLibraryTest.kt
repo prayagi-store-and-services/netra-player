@@ -42,4 +42,57 @@ class LocalLibraryTest {
         }
         // Real revocation/resume requires a separate host-side scenario, not a fake in-process check.
     }
+    @Test fun folderGridTapStartsLocalQueue() {
+        val c = ins.targetContext
+        LocalMediaLibrary.permissions().forEach { shell("pm grant ${c.packageName} $it") }
+        val files = LocalMediaLibrary.scan(c, LocalMediaLibrary.access(c))
+        val fixture = files.first { it.name == "a-video.mp4" }
+        fun find(n: android.view.accessibility.AccessibilityNodeInfo?, text: String): android.view.accessibility.AccessibilityNodeInfo? {
+            if (n == null) return null
+            if (n.text?.toString() == text) return n
+            for (i in 0 until n.childCount) find(n.getChild(i), text)?.let { return it }
+            return null
+        }
+        fun node(text: String): android.view.accessibility.AccessibilityNodeInfo {
+            val end = System.currentTimeMillis() + 10000
+            while (System.currentTimeMillis() < end) {
+                find(ins.uiAutomation.rootInActiveWindow, text)?.let { return it }
+                shell("input swipe 20 1200 20 500 300"); Thread.sleep(250)
+            }
+            shell("screencap -p /data/local/tmp/player-library-failure.png")
+            throw AssertionError("Missing library UI $text")
+        }
+        fun click(text: String) {
+            var n: android.view.accessibility.AccessibilityNodeInfo? = node(text)
+            while (n != null && !n.isClickable) n = n.parent
+            assertTrue("Activate library $text", n?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true)
+            ins.waitForIdleSync(); Thread.sleep(500)
+        }
+        androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java).use {
+            node("Search local files")
+            node(fixture.folder)
+            shell("screencap -p /data/local/tmp/player-library-folders.png")
+            click(fixture.folder)
+            node("All folders")
+            node(fixture.name)
+            shell("screencap -p /data/local/tmp/player-library-media.png")
+            click(fixture.name)
+            var controller: androidx.media3.session.MediaController? = null
+            val ready = java.util.concurrent.CountDownLatch(1)
+            ins.runOnMainSync {
+                val f = androidx.media3.session.MediaController.Builder(c, androidx.media3.session.SessionToken(c,
+                    android.content.ComponentName(c, PlaybackService::class.java))).buildAsync()
+                f.addListener({ controller = f.get(); ready.countDown() }, androidx.core.content.ContextCompat.getMainExecutor(c))
+            }
+            assertTrue("Library player connected", ready.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            var matched = false
+            repeat(30) {
+                ins.runOnMainSync { matched = controller!!.currentMediaItem?.mediaId == fixture.uri && controller!!.mediaItemCount >= 2 && controller!!.playerError == null }
+                if (!matched) Thread.sleep(200)
+            }
+            ins.runOnMainSync { controller!!.release() }
+            assertTrue("Tap starts permitted file in folder queue", matched)
+        }
+    }
+
 }
