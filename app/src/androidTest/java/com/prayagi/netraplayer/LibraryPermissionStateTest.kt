@@ -27,6 +27,26 @@ class LibraryPermissionStateTest {
         }
         ins.runOnMainSync { playerFullscreen.value = false }
         androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java).use {
+            // A fresh host install may show the existing notification permission prompt.
+            // Explicitly exercise the deny path rather than silently granting permission.
+            fun deny(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                if (n == null) return null
+                if (n.text?.toString() in listOf("Don't allow", "Don’t allow")) return n
+                for (i in 0 until n.childCount) deny(n.getChild(i))?.let { return it }
+                return null
+            }
+            val promptUntil = System.currentTimeMillis() + 2000
+            while (System.currentTimeMillis() < promptUntil) {
+                var button = deny(ins.uiAutomation.rootInActiveWindow)
+                if (button != null) {
+                    while (button != null && !button.isClickable) button = button.parent
+                    assertTrue("Notification deny action", button?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true)
+                    ins.waitForIdleSync(); Thread.sleep(400)
+                    assertFalse("Notification prompt closes after denial", has(ins.uiAutomation.rootInActiveWindow, "send you notifications"))
+                    break
+                }
+                Thread.sleep(100)
+            }
             val expected = if (state == "partial") "Selected videos only" else if (state == "full" && access.any) "Manage media access" else "Media access is off"
             val end = System.currentTimeMillis() + 10000
             while (!has(ins.uiAutomation.rootInActiveWindow, expected) && System.currentTimeMillis() < end) {
