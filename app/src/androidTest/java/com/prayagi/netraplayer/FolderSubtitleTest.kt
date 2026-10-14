@@ -21,7 +21,10 @@ class FolderSubtitleTest {
     private fun node(text: String): AccessibilityNodeInfo {
         val end = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < end) {
-            find(ins.uiAutomation.rootInActiveWindow, text)?.let { return it }
+            ins.waitForIdleSync()
+            val root = ins.uiAutomation.rootInActiveWindow
+            root?.refresh()
+            find(root, text)?.let { return it }
             if (ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName &&
                 text !in listOf("Open folder", "Download", "PlayerFixture", "Use this folder", "Allow")) {
                 fun scroll(n: AccessibilityNodeInfo?): Boolean {
@@ -151,7 +154,7 @@ class FolderSubtitleTest {
             node("Size: Crop")
             assertTrue("Crop maps to Media3 zoom", currentResize() == 4)
             capture("video-crop")
-            click("Size: Crop"); node("Size: Stretch")
+            click("Size: Crop"); ins.waitForIdleSync(); Thread.sleep(700); node("Size: Stretch")
             assertTrue("Stretch maps to Media3 fill", currentResize() == 3)
             capture("video-stretch")
             click("Size: Stretch")
