@@ -25,7 +25,7 @@ class FolderSubtitleTest {
             val root = ins.uiAutomation.rootInActiveWindow
             root?.refresh()
             find(root, text)?.let { return it }
-            if (ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName &&
+            if (System.currentTimeMillis() > end - 3000 && ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName &&
                 text !in listOf("Open folder", "Download", "PlayerFixture", "Use this folder", "Allow")) {
                 fun scroll(n: AccessibilityNodeInfo?): Boolean {
                     if (n == null) return false
