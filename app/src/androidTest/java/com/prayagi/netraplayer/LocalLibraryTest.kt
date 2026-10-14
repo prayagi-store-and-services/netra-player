@@ -95,4 +95,31 @@ class LocalLibraryTest {
         }
     }
 
+    @Test fun mp3MetadataAndDecoderStayLocal() {
+        val c = ins.targetContext
+        LocalMediaLibrary.permissions().forEach { shell("pm grant ${c.packageName} $it") }
+        val end = System.currentTimeMillis() + 10000
+        var mp3: LibraryMedia? = null
+        while (mp3 == null && System.currentTimeMillis() < end) {
+            mp3 = LocalMediaLibrary.scan(c, LocalMediaLibrary.access(c)).firstOrNull { it.name == "library-tone.mp3" }
+            if (mp3 == null) Thread.sleep(200)
+        }
+        assertNotNull("MP3 is in permitted local library", mp3)
+        assertFalse(mp3!!.video)
+        assertTrue("MP3 duration", mp3!!.durationMs in 7000..9000)
+        var player: androidx.media3.exoplayer.ExoPlayer? = null
+        ins.runOnMainSync {
+            player = androidx.media3.exoplayer.ExoPlayer.Builder(c).build()
+            player!!.setMediaItem(androidx.media3.common.MediaItem.fromUri(mp3!!.uri))
+            player!!.prepare(); player!!.play()
+        }
+        var ready = false
+        repeat(40) {
+            ins.runOnMainSync { ready = player!!.playbackState == androidx.media3.common.Player.STATE_READY && player!!.playerError == null && player!!.currentPosition > 0 }
+            if (!ready) Thread.sleep(100)
+        }
+        ins.runOnMainSync { player!!.release() }
+        assertTrue("Actual local MP3 decoder advances playback", ready)
+    }
+
 }
