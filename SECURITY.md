@@ -1,3 +1,9 @@
+## Local media library (draft, not released)
+- Optional runtime media permission: Android13+ READ_MEDIA_VIDEO and READ_MEDIA_AUDIO, Android14+ READ_MEDIA_VISUAL_USER_SELECTED for partial video access, Android26-32 READ_EXTERNAL_STORAGE limited by maxSdk32. No MANAGE_EXTERNAL_STORAGE or location permission.
+- MediaStore queries permitted shared videos and MP3 only. Other apps' private files are not searched. Android14 selected-only access is labelled; denied access retains individual system picker fallback.
+- Filenames, folder grouping, duration/resolution and thumbnails are read locally on demand, never uploaded or sent to a thumbnail server. No persistent thumbnail/file index added. Library refreshes on resume to remove revoked rows; playback checks access and reports unavailable.
+- Permission broadens discovery beyond individually selected files only after the user grants it. Media access is optional and revocable through Android. No VLC source/assets/dependency copied.
+- Device permission/metadata/playback and denial/partial/revocation tests must pass before release. This is not a claimed vulnerability patch.
 # Playback size control (v1.1.15)
 
 - Original Netra Fit/Crop/Stretch controls use Media3 resize modes. Fit is default; Crop can hide picture edges and Stretch can distort proportions. User-selected local media only.

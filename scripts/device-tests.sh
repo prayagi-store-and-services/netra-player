@@ -2,15 +2,38 @@
 set -uo pipefail
 for attempt in $(seq 1 60); do adb shell test -d /sdcard/Download && break; sleep 1; done
 adb shell mkdir -p /sdcard/Download/PlayerFixture
-adb push /tmp/player-fixtures/. /sdcard/Download/PlayerFixture/
+adb shell mkdir -p /sdcard/Music/NetraFixture
+adb push /tmp/player-fixtures/library-tone.mp3 /sdcard/Music/NetraFixture/library-tone.mp3
+adb push /tmp/player-fixtures/a-video.mp4 /tmp/player-fixtures/b-video.mp4 /tmp/player-fixtures/caption.srt /tmp/player-fixtures/ignore.txt /sdcard/Download/PlayerFixture/
 # Preserve emulator/system evidence. Never dismiss ANRs or alter app assertions.
 mkdir -p app/build/device-diagnostics
 adb shell dumpsys activity lastanr > app/build/device-diagnostics/lastanr-before.txt 2>&1 || true
 adb shell dumpsys meminfo > app/build/device-diagnostics/meminfo-before.txt 2>&1 || true
 adb logcat -b all -v threadtime > app/build/device-diagnostics/logcat.txt 2>&1 &
 logcat_pid=$!
+for name in a-video.mp4 b-video.mp4; do
+  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/PlayerFixture/$name
+done
+adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Music/NetraFixture/library-tone.mp3
 test_status=0
 gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace || test_status=$?
+# Gradle may remove instrumentation APK after connected tests; install exact built APKs.
+adb install -r app/build/outputs/apk/debug/app-debug.apk || test_status=1
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk || test_status=1
+mkdir -p app/build/device-diagnostics
+# Host-driven revocation kills the old process before fresh instrumentation starts.
+PKG=com.prayagi.netraplayer
+TEST="$PKG.test/androidx.test.runner.AndroidJUnitRunner"
+for permission in READ_MEDIA_VIDEO READ_MEDIA_AUDIO READ_MEDIA_VISUAL_USER_SELECTED; do
+  adb shell pm revoke "$PKG" android.permission.$permission || true
+done
+adb shell pm grant "$PKG" android.permission.READ_MEDIA_VISUAL_USER_SELECTED
+for state in partial revoked; do
+  if [ "$state" = revoked ]; then adb shell pm revoke "$PKG" android.permission.READ_MEDIA_VISUAL_USER_SELECTED; fi
+  adb shell am instrument -w -e class com.prayagi.netraplayer.LibraryPermissionStateTest -e libraryState "$state" "$TEST" > app/build/device-diagnostics/library-$state-result.txt
+  cat app/build/device-diagnostics/library-$state-result.txt
+  grep -q 'OK (1 test)' app/build/device-diagnostics/library-$state-result.txt || test_status=1
+done
 adb shell dumpsys activity lastanr > app/build/device-diagnostics/lastanr-after.txt 2>&1 || true
 adb shell dumpsys activity activities > app/build/device-diagnostics/activities-after.txt 2>&1 || true
 adb shell dumpsys meminfo > app/build/device-diagnostics/meminfo-after.txt 2>&1 || true
@@ -37,5 +60,8 @@ done
 adb pull /data/local/tmp/player-gate-failure.xml app/build/device-diagnostics/gate-failure.xml || true
 for file in folder-failure-ui resize-diagnostic; do
   adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/$file.txt app/build/device-diagnostics/$file.txt || true
+done
+for name in library-folders library-media library-failure library-partial library-revoked; do
+  adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
 done
 exit $test_status
