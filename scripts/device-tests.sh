@@ -31,8 +31,11 @@ adb pull /data/local/tmp/player-folder.png app/build/device-screenshots/folder.p
 adb pull /data/local/tmp/player-subtitle.png app/build/device-screenshots/subtitle.png || true
 adb pull /data/local/tmp/player-folder-failure.png app/build/device-screenshots/folder-failure.png || true
 adb pull /data/local/tmp/player-folder-failure.xml app/build/device-screenshots/folder-failure.xml || true
-for name in video-fit video-crop video-stretch gate-failure gate-before gate-after gate-update gate-about gate-rollback; do
+for name in video-fit-before video-after-fit-click video-fit video-crop video-stretch gate-failure gate-before gate-after gate-update gate-about gate-rollback; do
   adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
 done
 adb pull /data/local/tmp/player-gate-failure.xml app/build/device-diagnostics/gate-failure.xml || true
+for file in folder-failure-ui resize-diagnostic; do
+  adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/$file.txt app/build/device-diagnostics/$file.txt || true
+done
 exit $test_status
