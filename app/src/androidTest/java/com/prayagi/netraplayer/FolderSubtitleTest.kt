@@ -26,7 +26,7 @@ class FolderSubtitleTest {
                 text !in listOf("Open folder", "Download", "PlayerFixture", "Use this folder", "Allow")) {
                 fun scroll(n: AccessibilityNodeInfo?): Boolean {
                     if (n == null) return false
-                    if (n.isScrollable && n.performAction(if (text.startsWith("Queue:") || text in listOf("Next", "Previous", "Open .srt subtitles", "Tracks")) AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD else AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+                    if (n.isScrollable && n.performAction(if (text.startsWith("Queue:") || text in listOf("Next", "Previous", "Open .srt subtitles", "Tracks", "Size: Fit", "Size: Crop", "Size: Stretch")) AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD else AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
                     for (i in 0 until n.childCount) if (scroll(n.getChild(i))) return true
                     return false
                 }
@@ -35,7 +35,10 @@ class FolderSubtitleTest {
             Thread.sleep(300)
         }
         shell("screencap -p /data/local/tmp/player-folder-failure.png")
-        shell("uiautomator dump /data/local/tmp/player-folder-failure.xml")
+        fun dump(n: AccessibilityNodeInfo?, depth: Int = 0): String = if (n == null) "" else
+            " ".repeat(depth) + "${n.className} text=${n.text} desc=${n.contentDescription}\n" +
+                (0 until n.childCount).joinToString("") { dump(n.getChild(it), depth + 1) }
+        java.io.File(ins.targetContext.getExternalFilesDir(null), "folder-failure-ui.txt").writeText(dump(ins.uiAutomation.rootInActiveWindow))
         throw AssertionError("Missing $text")
     }
     private fun click(text: String) {
@@ -124,6 +127,48 @@ class FolderSubtitleTest {
             }
             java.io.File(ins.targetContext.getExternalFilesDir(null), "subtitle-diagnostic.txt").writeText(diagnostic)
             node("Tracks")
+            // Exercise original Netra size modes on actual decoded local video.
+            fun currentResize(): Int {
+                var result = -1
+                fun view(v: android.view.View): androidx.media3.ui.PlayerView? {
+                    if (v is androidx.media3.ui.PlayerView) return v
+                    if (v is android.view.ViewGroup) for (i in 0 until v.childCount) view(v.getChildAt(i))?.let { return it }
+                    return null
+                }
+                ins.runOnMainSync {
+                    val activity = androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                        .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).first()
+                    result = view(activity.window.decorView)?.resizeMode ?: -1
+                }
+                return result
+            }
+            node("Size: Fit")
+            assertTrue("Default fit preserves the full picture", currentResize() == 0)
+            capture("video-fit-before")
+            click("Size: Fit")
+            java.io.File(ins.targetContext.getExternalFilesDir(null), "resize-diagnostic.txt").writeText("After Fit click resizeMode=${currentResize()}")
+            capture("video-after-fit-click")
+            node("Size: Crop")
+            assertTrue("Crop maps to Media3 zoom", currentResize() == 4)
+            capture("video-crop")
+            click("Size: Crop"); node("Size: Stretch")
+            assertTrue("Stretch maps to Media3 fill", currentResize() == 3)
+            capture("video-stretch")
+            click("Size: Stretch")
+            // Compose may relayout the scrolling player between AX lookup and activation.
+            // Recover one stale/no-op accessibility activation, keeping actual mode/label gates.
+            ins.waitForIdleSync()
+            Thread.sleep(700) // Let the accepted Compose event commit before deciding it was a no-op.
+            if (currentResize() == 3) {
+                val fresh = node("Size: Stretch")
+                var target: AccessibilityNodeInfo? = fresh
+                while (target != null && !target.isClickable) target = target.parent
+                assertTrue("Fresh Stretch action accepted", target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            }
+            ins.waitForIdleSync()
+            node("Size: Fit")
+            assertTrue("Cycle returns to undistorted fit", currentResize() == 0)
+            capture("video-fit")
             capture("subtitle")
             ins.runOnMainSync { controller!!.release() }
             assertTrue("SRT cue delivered: $diagnostic", cue)
