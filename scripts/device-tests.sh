@@ -2,16 +2,19 @@
 set -uo pipefail
 for attempt in $(seq 1 60); do adb shell test -d /sdcard/Download && break; sleep 1; done
 adb shell mkdir -p /sdcard/Download/PlayerFixture
-adb push /tmp/player-fixtures/. /sdcard/Download/PlayerFixture/
+adb shell mkdir -p /sdcard/Music/NetraFixture
+adb push /tmp/player-fixtures/library-tone.mp3 /sdcard/Music/NetraFixture/library-tone.mp3
+adb push /tmp/player-fixtures/a-video.mp4 /tmp/player-fixtures/b-video.mp4 /tmp/player-fixtures/caption.srt /tmp/player-fixtures/ignore.txt /sdcard/Download/PlayerFixture/
 # Preserve emulator/system evidence. Never dismiss ANRs or alter app assertions.
 mkdir -p app/build/device-diagnostics
 adb shell dumpsys activity lastanr > app/build/device-diagnostics/lastanr-before.txt 2>&1 || true
 adb shell dumpsys meminfo > app/build/device-diagnostics/meminfo-before.txt 2>&1 || true
 adb logcat -b all -v threadtime > app/build/device-diagnostics/logcat.txt 2>&1 &
 logcat_pid=$!
-for name in a-video.mp4 b-video.mp4 library-tone.mp3; do
+for name in a-video.mp4 b-video.mp4; do
   adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/PlayerFixture/$name
 done
+adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Music/NetraFixture/library-tone.mp3
 test_status=0
 gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace || test_status=$?
 # Gradle may remove instrumentation APK after connected tests; install exact built APKs.
