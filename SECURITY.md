@@ -1,3 +1,9 @@
+# Playback size control (v1.1.15)
+
+- Original Netra Fit/Crop/Stretch controls use Media3 resize modes. Fit is default; Crop can hide picture edges and Stretch can distort proportions. User-selected local media only.
+- No VLC code/assets, new dependency, permission, endpoint, file access, or stored personal data. This is a playback improvement, not a claimed vulnerability patch.
+- Require actual video resize-mode assertions and screenshots before release. No claim of VLC codec parity or hardware decoding coverage.
+
 # Security notes - Netra Player
 
 ## User-selected SRT subtitles (v1.1.14)
