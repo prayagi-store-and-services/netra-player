@@ -524,7 +524,7 @@ private fun AboutSection() {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Netra Player", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Version $version | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
+            Text("v$version | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
                     Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
