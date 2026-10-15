@@ -1,3 +1,9 @@
+# Ecosystem branding (v1.1.16)
+
+- About adds "Netra Ecosystem" immediately after the app version. The header is unchanged.
+- Text-only branding: no new permissions, dependencies, endpoints, data collection, media access or background behavior. Not a vulnerability fix.
+- Existing playback, subtitle, update and privacy checks remain required.
+
 # Playback size control (v1.1.15)
 
 - Original Netra Fit/Crop/Stretch controls use Media3 resize modes. Fit is default; Crop can hide picture edges and Stretch can distort proportions. User-selected local media only.
