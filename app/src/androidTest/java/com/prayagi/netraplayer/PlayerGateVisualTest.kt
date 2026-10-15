@@ -54,7 +54,7 @@ class PlayerGateVisualTest {
             assertTrue("Oct11 screen greeting",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")!=null)
             click("Update");shot("gate-update")
             click("About");shot("gate-about")
-            assertTrue("Visible ecosystem brand in About", find(ins.uiAutomation.rootInActiveWindow, "Version 1.1.16 | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.") != null)
+            assertTrue("Visible ecosystem brand in About", find(ins.uiAutomation.rootInActiveWindow, "v1.1.16 | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.") != null)
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
             time.set(LocalDateTime.of(2026,10,10,22,0))
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
