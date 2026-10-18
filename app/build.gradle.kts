@@ -12,8 +12,8 @@ android {
     minSdk = 26
     targetSdk = 36
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    versionCode = 23
-    versionName = "1.1.16.1"
+    versionCode = 24
+    versionName = "1.1.16.2"
   }
 
   signingConfigs {
@@ -43,7 +43,8 @@ android {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
-  buildFeatures { compose = true }
+  buildFeatures { compose = true
+    buildConfig = true }
 }
 
 dependencies {
