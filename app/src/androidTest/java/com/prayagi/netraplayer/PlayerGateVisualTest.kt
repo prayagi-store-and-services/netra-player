@@ -54,7 +54,12 @@ class PlayerGateVisualTest {
             assertTrue("Oct11 screen greeting",find(ins.uiAutomation.rootInActiveWindow,"Jay Mata Di")!=null)
             click("Update");shot("gate-update")
             click("About");shot("gate-about")
-            assertTrue("Visible ecosystem brand in About", find(ins.uiAutomation.rootInActiveWindow, "v1.1.16.2 | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.") != null)
+            run { // the About card can take seconds to lay out on a loaded CI emulator: wait for it like the other checks above
+                val brand = "v1.1.16.2 | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device."
+                val end = System.currentTimeMillis() + 10000
+                while (System.currentTimeMillis() < end && find(ins.uiAutomation.rootInActiveWindow, brand) == null) Thread.sleep(200)
+                assertTrue("Visible ecosystem brand in About", find(ins.uiAutomation.rootInActiveWindow, brand) != null)
+            }
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
             time.set(LocalDateTime.of(2026,10,10,22,0))
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
