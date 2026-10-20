@@ -56,7 +56,7 @@ The header is the Netra standard: 56 dp, fixed, only the app name, the installed
 
 ## What the app connects to
 - `https://github.com/prayagi-store-and-services/netra-player/releases/latest/download/latest.json` and the release APK, only for the "Check for update" button and the in-app update. The update is downloaded and then installed by you with the normal Android installer.
-- Firestore REST (public project netra-ai-jan): once a day it adds +1 to the counter `netra_active/netra-player_<yyyyMMdd>`. No user ID, no location, no files, no device data. It is on by default and can be switched off in About.
+- Firestore REST (public project netra-ai-jan): once a day it adds +1 to the counter `netra_active/netra-player_<yyyyMMdd>`. No user ID, no location, no files, no device data. Off by default. Nothing is sent by this counter until the user explicitly enables it in About. Legacy enabled preferences without this consent version do not enable sending; existing users must opt in again. Turning it off stops later pings, not an already-started request. Network services receive ordinary connection metadata.
 
 ## Permissions
 - INTERNET: update check and the usage count.
