@@ -1,3 +1,8 @@
+# Verified web link (v1.1.16.3)
+
+- The app now declares a verified web link for its own page, https://prayagi-store-and-services.github.io/netra-eco/app/player. Android opens the link in the app only when the website's assetlinks.json confirms this app's package and signing certificate; otherwise it stays in the browser.
+- It is only an entry point: no screen reads data from the link, nothing is stored or sent. No new permission, library or server. Not a vulnerability fix.
+
 # Ecosystem branding (v1.1.16)
 
 - About adds "Netra Ecosystem" immediately after the app version. The header is unchanged.
