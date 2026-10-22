@@ -51,7 +51,7 @@ jobs:
           output: codeql-results
       - name: Preserve analysis evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Player-CodeQL-Kotlin-SARIF
           path: codeql-results/*.sarif
@@ -73,7 +73,7 @@ jobs:
           upload: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && 'always' || 'never' }}
           upload-database: false
           output: codeql-results
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Player-CodeQL-Actions-SARIF
           path: codeql-results/*.sarif

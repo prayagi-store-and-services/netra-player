@@ -48,7 +48,7 @@ jobs:
           gradle --no-daemon :app:dependencies --configuration releaseRuntimeClasspath > app/build/ci-diagnostics/release-runtime-dependencies.txt
       - name: Upload build log and test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-diagnostics
           path: |
@@ -58,7 +58,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload test APK for device verification
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: NetraPlayer-test-apk
           path: app/build/outputs/apk/debug/app-debug.apk
@@ -86,7 +86,7 @@ jobs:
           script: bash scripts/device-tests.sh
       - name: Upload device evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Player-device-evidence
           path: |
