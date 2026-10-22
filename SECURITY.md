@@ -1,3 +1,8 @@
+# Fuller crash reports (v1.1.16.4)
+
+- Automatic crash reports used to be cut off before the root cause when an exception was wrapped in others. The report now keeps a few frames of each wrapper and more frames of the root cause, within a larger size limit (6000 characters).
+- Still only class names and code locations, never exception messages. No new permission, library or server. Not a vulnerability fix.
+
 # Verified web link (v1.1.16.3)
 
 - The app now declares a verified web link for its own page, https://prayagi-store-and-services.github.io/netra-eco/app/player. Android opens the link in the app only when the website's assetlinks.json confirms this app's package and signing certificate; otherwise it stays in the browser.
