@@ -1,5 +1,9 @@
 # Fuller crash reports (v1.1.16.4)
 
+# Crash report consent: destination shown before Send (v1.1.16.6)
+
+- The Crash report card and the preview dialog now name the destination before anything is sent: developer email prayagideepak@gmail.com through the FormSubmit service (formsubmit.co). The exact report text is still shown first, and sending still happens only when you tap Send. Text-only change; no new permission, library or server. Not a vulnerability fix.
+
 - Automatic crash reports used to be cut off before the root cause when an exception was wrapped in others. The report now keeps a few frames of each wrapper and more frames of the root cause, within a larger size limit (6000 characters).
 - Still only class names and code locations, never exception messages. No new permission, library or server. Not a vulnerability fix.
 

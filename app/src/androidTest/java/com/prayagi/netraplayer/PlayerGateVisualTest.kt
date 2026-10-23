@@ -55,7 +55,7 @@ class PlayerGateVisualTest {
             click("Update");shot("gate-update")
             click("About");shot("gate-about")
             run { // the About card can take seconds to lay out on a loaded CI emulator: wait for it like the other checks above
-                val brand = "v1.1.16.5 | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device."
+                val brand = "v1.1.16.6 | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device."
                 val end = System.currentTimeMillis() + 10000
                 while (System.currentTimeMillis() < end && find(ins.uiAutomation.rootInActiveWindow, brand) == null) Thread.sleep(200)
                 assertTrue("Visible ecosystem brand in About", find(ins.uiAutomation.rootInActiveWindow, brand) != null)
