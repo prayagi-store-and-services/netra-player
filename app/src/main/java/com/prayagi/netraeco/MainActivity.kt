@@ -384,7 +384,8 @@ private fun PlaySection() {
                         })
                         setShowPreviousButton(false); setShowNextButton(false)
                         setShowRewindButton(true); setShowFastForwardButton(true)
-                        isFocusable = true; isFocusableInTouchMode = true
+                        // Keep D-pad/keyboard navigation without consuming the first touch for focus.
+                        isFocusable = true; isFocusableInTouchMode = false
                     }
                 },
                 update = { v -> v.setFullscreenButtonClickListener { on -> setFull(on) } }
