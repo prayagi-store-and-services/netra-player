@@ -67,7 +67,7 @@ class BackgroundPlaybackTest {
         val context = instrumentation.targetContext
         val wav = File(context.filesDir, "device-test.wav")
         val sampleRate = 8000
-        val dataSize = sampleRate * 2 * 20
+        val dataSize = sampleRate * 2 * 120
         val buffer = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN)
         buffer.put("RIFF".toByteArray()).putInt(36 + dataSize).put("WAVEfmt ".toByteArray())
         buffer.putInt(16).putShort(1).putShort(1).putInt(sampleRate).putInt(sampleRate * 2)
@@ -111,7 +111,7 @@ class BackgroundPlaybackTest {
                         if (controller!!.currentMediaItemIndex == 1) advanced.countDown()
                     }
                 })
-                controller!!.seekTo(19_500)
+                controller!!.seekTo(119_500)
             }
             assertTrue("Queue advanced to next local item", advanced.await(10, TimeUnit.SECONDS))
             shell("cmd statusbar expand-notifications")
@@ -127,17 +127,136 @@ class BackgroundPlaybackTest {
             instrumentation.runOnMainSync { assertTrue("Notification resumed playback", controller!!.playWhenReady) }
             shell("cmd statusbar collapse")
             scenario.moveToState(Lifecycle.State.RESUMED)
-            shell("am start -n com.prayagi.netraplayer/.MainActivity")
+            // Resume the scenario-owned activity. A shell am start creates another standard-mode instance.
+            scenario.onActivity { activity ->
+                org.junit.Assert.assertEquals(Lifecycle.State.RESUMED, activity.lifecycle.currentState)
+            }
             awaitNode("loaded player", scroll = true) { it.text?.contains("Open another file") == true }
             capture("loaded")
             shell("cmd uimode night yes")
             awaitNode("dark player", scroll = true) { it.text?.contains("Open another file") == true }
             Thread.sleep(800)
             capture("dark")
+            // Establish visible controls before testing the user's fullscreen/hide/show actions.
+            scenario.onActivity { activity ->
+                fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
+                    if (view is androidx.media3.ui.PlayerView) return view
+                    if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findPlayer(view.getChildAt(i))?.let { return it }
+                    return null
+                }
+                val view = findPlayer(activity.window.decorView) ?: throw AssertionError("PlayerView missing from view hierarchy")
+                org.junit.Assert.assertTrue("Scenario activity owns visible PlayerView", view.isShown)
+                view.showController()
+            }
+            // showController animates; isControllerFullyVisible is false until the animation ends.
+            var controllerReady = false
+            val controllerUntil = System.currentTimeMillis() + 3000
+            while (!controllerReady && System.currentTimeMillis() < controllerUntil) {
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity ->
+                    fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
+                        if (view is androidx.media3.ui.PlayerView) return view
+                        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findPlayer(view.getChildAt(i))?.let { return it }
+                        return null
+                    }
+                    controllerReady = findPlayer(activity.window.decorView)?.isControllerFullyVisible == true
+                }
+                if (!controllerReady) Thread.sleep(50)
+            }
+            org.junit.Assert.assertTrue("Controller became fully visible after animation", controllerReady)
             val fullscreen = awaitNode("Fullscreen control") { it.contentDescription?.toString()?.contains("fullscreen", true) == true }
             assertTrue("Fullscreen is clickable", fullscreen.performAction(AccessibilityNodeInfo.ACTION_CLICK))
-            Thread.sleep(1500)
-            capture("fullscreen")
+            // First-use immersive tutorial is an OS window, not the player controller.
+            val tutorialUntil = System.currentTimeMillis() + 5000
+            while (System.currentTimeMillis() < tutorialUntil) {
+                var tutorial = find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Got it" }
+                if (tutorial != null) {
+                    while (!tutorial!!.isClickable && tutorial.parent != null) tutorial = tutorial.parent
+                    tutorial!!.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    break
+                }
+                Thread.sleep(200)
+            }
+            // A tutorial is a separate system window. An ACTION_CLICK return alone
+            // does not prove dismissal, so verify absence before touching the player.
+            val tutorialGoneUntil = System.currentTimeMillis() + 3000
+            while (find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Got it" } != null && System.currentTimeMillis() < tutorialGoneUntil) Thread.sleep(50)
+            assertTrue("Immersive tutorial dismissed before player touch", find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Got it" } == null)
+            val touches = java.util.concurrent.atomic.AtomicInteger(0)
+            var inputStates = ""
+            var physicalTapIssued = false
+            var diagnosticPlayer: androidx.media3.ui.PlayerView? = null
+            scenario.onActivity { activity ->
+                fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
+                    if (view is androidx.media3.ui.PlayerView) return view
+                    if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findPlayer(view.getChildAt(i))?.let { return it }
+                    return null
+                }
+                diagnosticPlayer = findPlayer(activity.window.decorView)
+                diagnosticPlayer?.setOnTouchListener { _, event ->
+                    if (event.actionMasked == android.view.MotionEvent.ACTION_UP) touches.incrementAndGet()
+                    inputStates += " action=${event.actionMasked} controller=${diagnosticPlayer?.isControllerFullyVisible} time=${event.eventTime}"
+                    false
+                }
+            }
+            fun controllerVisible(): Boolean {
+                var visible = false
+                scenario.onActivity { activity ->
+                    fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
+                        if (view is androidx.media3.ui.PlayerView) return view
+                        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findPlayer(view.getChildAt(i))?.let { return it }
+                        return null
+                    }
+                    visible = findPlayer(activity.window.decorView)?.isControllerFullyVisible == true
+                }
+                return visible
+            }
+            fun awaitController(visible: Boolean) {
+                val until = System.currentTimeMillis() + 1500
+                while (controllerVisible() != visible && System.currentTimeMillis() < until) Thread.sleep(50)
+                var diagnostic = ""
+                if (controllerVisible() != visible) {
+                    shell("screencap -p /data/local/tmp/player-failure.png")
+                    scenario.onActivity { activity ->
+                        fun dump(view: android.view.View, depth: Int = 0): String {
+                            val bounds = android.graphics.Rect()
+                            view.getGlobalVisibleRect(bounds)
+                            val state = if (view is androidx.media3.ui.PlayerView) " viewIdentity=${System.identityHashCode(view)} retainedIdentity=${diagnosticPlayer?.let { System.identityHashCode(it) }} nativeControlVisibility=${view.findViewById<android.view.View>(androidx.media3.ui.R.id.exo_controller)?.visibility} controllerFullyVisible=${view.isControllerFullyVisible} useController=${view.useController} playerBound=${view.player != null} hasWindowFocus=${view.hasWindowFocus()}" else ""
+                            return " ".repeat(depth) + "${view.javaClass.name} shown=${view.isShown} visibility=${view.visibility} clickable=${view.isClickable} bounds=$bounds$state\n" +
+                                if (view is android.view.ViewGroup) (0 until view.childCount).joinToString("") { dump(view.getChildAt(it), depth + 1) } else ""
+                        }
+                        diagnostic = "overlayTracksPresent=${find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } != null} activeWindowId=${instrumentation.uiAutomation.rootInActiveWindow?.windowId} physicalTapIssued=$physicalTapIssued\n" + "lifecycle=${activity.lifecycle.currentState} activityFocus=${activity.hasWindowFocus()} fullscreen=${playerFullscreen.value}\n" + dump(activity.window.decorView)
+                    }
+                }
+                val originalState = controllerVisible()
+                if (originalState != visible) {
+                    scenario.onActivity { diagnosticPlayer?.performClick() }
+                    Thread.sleep(500)
+                    diagnostic += "\nphysicalTapIssued=$physicalTapIssued realTouchUps=${touches.get()} inputStates=$inputStates retainedViewShown=${diagnosticPlayer?.isShown} directClickVisible=${controllerVisible()}"
+                }
+                assertTrue("Controller fully-visible state equals $visible\n$diagnostic", originalState == visible)
+            }
+            // Establish a hidden starting state without racing the 4-second auto-hide
+            // boundary. The behavior under test still MUST pass via real touch.
+            scenario.onActivity { diagnosticPlayer?.hideController() }
+            awaitController(false)
+            physicalTapIssued = true
+            shell("input tap 650 550")
+            awaitController(true)
+            awaitNode("Tracks visible in fullscreen") { it.text?.toString() == "Tracks" }
+            // Capture immediately after the settled state. Idle-wait capture can consume the auto-hide window.
+            shell("screencap -p /data/local/tmp/player-fullscreen.png")
+            awaitController(true)
+            shell("input tap 650 550")
+            awaitController(false)
+            val hiddenUntil = System.currentTimeMillis() + 1500
+            while (find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } != null && System.currentTimeMillis() < hiddenUntil) Thread.sleep(50)
+            shell("screencap -p /data/local/tmp/player-fullscreen-hidden.png")
+            assertTrue("Tracks overlay hides with controller", find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } == null)
+            shell("input tap 650 550")
+            awaitController(true)
+            awaitNode("Tracks visible after tap") { it.text?.toString() == "Tracks" }
+            shell("screencap -p /data/local/tmp/player-fullscreen-shown.png")
             shell("input keyevent KEYCODE_BACK")
             shell("cmd uimode night no")
             instrumentation.runOnMainSync {

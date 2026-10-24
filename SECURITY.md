@@ -1,3 +1,10 @@
+# Playback controls and track choices (v1.1.16.7)
+
+- Audio and subtitle choices stay pending until Use selected tracks. Cancel leaves playback parameters unchanged. Long track names wrap in a scrollable dialog.
+- Fullscreen title and track overlays follow the native controller visibility. Audio titles sit away from the center controls. Existing Fit/Crop/Stretch size modes are preserved.
+- No new permission, dependency, network endpoint, data collection or file access. Selected media remains on the device. This is a playback/UI patch, not a vulnerability fix.
+- Android emulator tests cover background audio, notification pause/play, real-touch fullscreen show/hide, track apply/cancel, long-label scrolling and video resize modes. Physical-device, Android TV/D-pad and TalkBack testing are not claimed. Earlier controller-state diagnostics remain for regression investigation; their original cause is not claimed as conclusively explained.
+
 # Fuller crash reports (v1.1.16.4)
 
 # Crash report consent: destination shown before Send (v1.1.16.6)
