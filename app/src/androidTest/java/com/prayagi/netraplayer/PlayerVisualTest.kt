@@ -103,6 +103,20 @@ class PlayerVisualTest {
                     activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) {} } }
                 }
                 ins.waitForIdleSync()
+                fun visibleLabel(node: android.view.accessibility.AccessibilityNodeInfo?, text: String): Boolean {
+                    if (node == null) return false
+                    if (node.isVisibleToUser && node.text?.toString() == text) return true
+                    return (0 until node.childCount).any { visibleLabel(node.getChild(it), text) }
+                }
+                val dialogReadyUntil = System.currentTimeMillis() + 10000
+                while ((!visibleLabel(ins.uiAutomation.rootInActiveWindow, "Audio and subtitles") ||
+                        !visibleLabel(ins.uiAutomation.rootInActiveWindow, "Long track 0 - original commentary and descriptive audio for the selected local file (hi)") ||
+                        !visibleLabel(ins.uiAutomation.rootInActiveWindow, "Use selected tracks")) &&
+                    System.currentTimeMillis() < dialogReadyUntil) Thread.sleep(50)
+                org.junit.Assert.assertTrue("Top dialog and first long label drawn before capture", visibleLabel(ins.uiAutomation.rootInActiveWindow, "Audio and subtitles") &&
+                    visibleLabel(ins.uiAutomation.rootInActiveWindow, "Long track 0 - original commentary and descriptive audio for the selected local file (hi)") &&
+                    visibleLabel(ins.uiAutomation.rootInActiveWindow, "Use selected tracks"))
+                ins.uiAutomation.waitForIdle(300, 5000)
                 shell("screencap -p /data/local/tmp/player-small-tracks-top.png")
                 clickLabel("Subtitles off", scroll = true)
                 shell("screencap -p /data/local/tmp/player-small-tracks-bottom.png")
