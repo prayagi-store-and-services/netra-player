@@ -240,6 +240,7 @@ private fun PlaySection() {
     var hasVideo by remember { mutableStateOf(player.currentTracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
     var choosingTracks by remember { mutableStateOf(false) }
+    var videoFit by remember { mutableStateOf(VideoFit.FIT) }
     val folderScope = rememberCoroutineScope()
     var folderFiles by remember { mutableStateOf<List<FolderMedia>>(emptyList()) }
     var folderBusy by remember { mutableStateOf(false) }
@@ -388,13 +389,18 @@ private fun PlaySection() {
                         isFocusable = true; isFocusableInTouchMode = false
                     }
                 },
-                update = { v -> v.setFullscreenButtonClickListener { on -> setFull(on) } }
+                update = { v ->
+                    v.resizeMode = videoFit.resizeMode
+                    v.setFullscreenButtonClickListener { on -> setFull(on) }
+                }
             )
             if (!full || controllerVisible) {
-                OutlinedButton(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-                    onClick = { choosingTracks = true }
-                ) { Text("Tracks", color = Color.White) }
+                Row(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (hasVideo) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { videoFit = videoFit.next() }) {
+                        Text("Size: ${videoFit.label}", color = Color.White)
+                    }
+                    OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { choosingTracks = true }) { Text("Tracks", color = Color.White) }
+                }
             }
             if (!hasVideo && (!full || controllerVisible)) {
                 Column(Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 20.dp, end = 112.dp), horizontalAlignment = Alignment.Start) {
@@ -527,7 +533,7 @@ private fun AboutSection() {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Netra Player", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Version $version. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
+            Text("v$version | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
                     Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
