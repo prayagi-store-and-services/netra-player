@@ -1,3 +1,29 @@
+# Fuller crash reports (v1.1.16.4)
+
+# Crash report consent: destination shown before Send (v1.1.16.6)
+
+- The Crash report card and the preview dialog now name the destination before anything is sent: developer email prayagideepak@gmail.com through the FormSubmit service (formsubmit.co). The exact report text is still shown first, and sending still happens only when you tap Send. Text-only change; no new permission, library or server. Not a vulnerability fix.
+
+- Automatic crash reports used to be cut off before the root cause when an exception was wrapped in others. The report now keeps a few frames of each wrapper and more frames of the root cause, within a larger size limit (6000 characters).
+- Still only class names and code locations, never exception messages. No new permission, library or server. Not a vulnerability fix.
+
+# Verified web link (v1.1.16.3)
+
+- The app now declares a verified web link for its own page, https://prayagi-store-and-services.github.io/netra-eco/app/player. Android opens the link in the app only when the website's assetlinks.json confirms this app's package and signing certificate; otherwise it stays in the browser.
+- It is only an entry point: no screen reads data from the link, nothing is stored or sent. No new permission, library or server. Not a vulnerability fix.
+
+# Ecosystem branding (v1.1.16)
+
+- About adds "Netra Ecosystem" immediately after the app version. The header is unchanged.
+- Text-only branding: no new permissions, dependencies, endpoints, data collection, media access or background behavior. Not a vulnerability fix.
+- Existing playback, subtitle, update and privacy checks remain required.
+
+# Playback size control (v1.1.15)
+
+- Original Netra Fit/Crop/Stretch controls use Media3 resize modes. Fit is default; Crop can hide picture edges and Stretch can distort proportions. User-selected local media only.
+- No VLC code/assets, new dependency, permission, endpoint, file access, or stored personal data. This is a playback improvement, not a claimed vulnerability patch.
+- Require actual video resize-mode assertions and screenshots before release. No claim of VLC codec parity or hardware decoding coverage.
+
 # Security notes - Netra Player
 
 ## User-selected SRT subtitles (v1.1.14)
@@ -114,3 +140,7 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 - The manifest explicitly refuses cleartext traffic and loads a network security configuration with system certificate authorities only. User-installed certificate authorities and debug trust overrides are not included.
 - This app policy applies independently of whether a VPN is enabled. It does not encrypt other apps' traffic or provide a device-wide VPN.
 - Device tests assert global and per-host cleartext refusal and the packaged trust-anchor configuration. Existing HTTPS endpoints retain normal certificate/hostname validation. No ADB command is required for normal app use; emulator setup commands are development-only.
+
+2026-10-18 crash-report facts (1.1.16.2): crash reports now stamp the app version and crash time at the moment of the crash, from the compile-time version constant (a PackageManager lookup can fail mid-crash and was the one path that could save version "unknown"; an old crash viewed after an update also no longer borrows the newer app's version label). BuildConfig generation is enabled for this. Reports saved by older versions keep the honest "unknown (crash was saved by an older app version)" label. Reports still contain only app name, version, crash time, phone model, Android version and the sanitized trace; no new data, permission or network change. Player repo change explicitly approved by Deepak for this item (18 Oct 9:41 PM).
+
+2026-10-23 crash-consent restore (1.1.16.5): crash reports are no longer sent automatically. A crash is still saved on the device with the same fields (app name, version, crash time, phone model, Android version, sanitized trace); the existing Crash report card shows exactly what will be sent and where before the user taps Send, and nothing leaves the phone without that explicit action. Removes the only automatic upload; no new data, permission or network change; existing saved reports untouched, nothing deleted. Restores the 7 Oct opt-in rule (server sends only after the user sees the data and agrees). CI verified; physical phone confirmation pending.

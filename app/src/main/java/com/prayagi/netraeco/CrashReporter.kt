@@ -7,28 +7,59 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Crash reports. When the app crashes, a short report is saved on the device. Nothing is sent by itself: the user sends it from the Crash report card after seeing the exact text.
- * The report holds ONLY: app name, phone model, Android version, app version and the crash stack trace
- * (exception class names and code locations; exception messages are dropped). No name, email, location, files or device IDs.
+ * Crash reports, opt-in only. When the app crashes, a short report is saved on the device. Nothing is sent
+ * automatically: the report leaves the phone only when the user opens the Crash report card, reads the exact
+ * text and taps Send. The report holds ONLY: app name, phone model, Android version, the app version and time
+ * AT THE MOMENT OF THE CRASH, and the crash stack trace (exception class names and code locations; exception
+ * messages are dropped). No name, email, location, files or device IDs. Crash-time facts are saved with the
+ * trace so an old crash is never shown or sent under a newer app's version label.
  */
 object CrashReporter {
     private const val APP_NAME = "NetraPlayer"
     private const val FILE = "pending_crash_report.txt"
     private const val LAST_FILE = "last_crash_report.txt"
     private const val ENDPOINT = "https://formsubmit.co/ajax/prayagideepak@gmail.com"
-    private const val MAX_TRACE = 3000
+    private const val MAX_TRACE = 6000
+    private const val HEADER_PREFIX = "netraplayer-crash-v1|"
     @Volatile private var installed = false
+
+    /** A saved crash file: crash-time facts plus the trace. Legacy files (no header) parse with null facts. */
+    internal data class SavedCrash(val version: String?, val crashedAt: Long?, val trace: String)
+
+    internal fun pack(context: Context, trace: String): String =
+        HEADER_PREFIX + "v=" + appVersion(context) + "|t=" + System.currentTimeMillis() + "\n" + trace
+
+    internal fun unpack(raw: String): SavedCrash {
+        if (!raw.startsWith(HEADER_PREFIX)) return SavedCrash(null, null, raw)
+        val nl = raw.indexOf('\n')
+        if (nl < 0) return SavedCrash(null, null, raw)
+        var v: String? = null
+        var t: Long? = null
+        for (part in raw.substring(HEADER_PREFIX.length, nl).split('|')) {
+            if (part.startsWith("v=")) v = part.substring(2)
+            if (part.startsWith("t=")) t = part.substring(2).toLongOrNull()
+        }
+        return SavedCrash(v, t, raw.substring(nl + 1))
+    }
+
+    internal fun formatCrashTime(t: Long): String =
+        java.text.SimpleDateFormat("d MMM yyyy, h:mm:ss a", java.util.Locale.getDefault()).format(java.util.Date(t))
+
+    /** Honest label when the file predates crash-time version saving. */
+    private const val LEGACY_VERSION_LABEL = "unknown (crash was saved by an older app version)"
 
     /** Exception class names and code locations only. */
     fun sanitize(t: Throwable): String {
-        val sb = StringBuilder()
+        // Wrapper exceptions come first and used to eat the size limit, so the root cause was cut off.
+        // Outer levels keep a few frames, the root cause keeps more.
+        val chain = ArrayList<Throwable>()
         var cur: Throwable? = t
-        var depth = 0
-        while (cur != null && depth < 5) {
-            sb.append(if (depth == 0) "" else "Caused by: ").append(cur.javaClass.name).append('\n')
-            for (frame in cur.stackTrace.take(25)) sb.append("  at ").append(frame.toString()).append('\n')
-            cur = cur.cause
-            depth++
+        while (cur != null && chain.size < 6 && chain.none { it === cur }) { chain.add(cur); cur = cur.cause }
+        val sb = StringBuilder()
+        chain.forEachIndexed { i, e ->
+            val isRoot = i == chain.size - 1
+            sb.append(if (i == 0) "" else "Caused by: ").append(e.javaClass.name).append('\n')
+            for (frame in e.stackTrace.take(if (isRoot) 25 else 6)) sb.append("  at ").append(frame.toString()).append('\n')
         }
         return sb.toString().take(MAX_TRACE)
     }
@@ -39,64 +70,44 @@ object CrashReporter {
         val app = context.applicationContext
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            runCatching { val t = sanitize(throwable); File(app.filesDir, FILE).writeText(t); File(app.filesDir, LAST_FILE).writeText(t) }
+            runCatching { val packed = pack(app, sanitize(throwable)); File(app.filesDir, FILE).writeText(packed); File(app.filesDir, LAST_FILE).writeText(packed) }
             previous?.uncaughtException(thread, throwable)
         }
     }
 
+    /** Compile-time version constant: readable even mid-crash, when PackageManager can be unavailable. */
     private fun appVersion(c: Context): String =
-        runCatching { c.packageManager.getPackageInfo(c.packageName, 0).versionName ?: "unknown" }.getOrDefault("unknown")
-
-    fun sendPending(context: Context, version: String): Boolean {
-        val file = File(context.filesDir, FILE)
-        if (!file.exists()) return false
-        val trace = runCatching { file.readText() }.getOrDefault("")
-        if (trace.isBlank()) { runCatching { file.delete() }; return false }
-        return try {
-            val json = org.json.JSONObject()
-            json.put("_subject", "[Netra] Automatic crash report: $APP_NAME")
-            json.put("_captcha", "false")
-            json.put("_template", "table")
-            json.put("app", APP_NAME)
-            json.put("device", Build.MODEL ?: "Unknown")
-            json.put("android_version", Build.VERSION.RELEASE ?: "Unknown")
-            json.put("app_version", version)
-            json.put("stack_trace", trace)
-            val c = URL(ENDPOINT).openConnection() as HttpURLConnection
-            c.requestMethod = "POST"; c.connectTimeout = 10000; c.readTimeout = 15000; c.doOutput = true
-            c.setRequestProperty("Content-Type", "application/json"); c.setRequestProperty("Accept", "application/json")
-            c.outputStream.use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
-            val ok = c.responseCode in 200..299 && accepted(c.inputStream.bufferedReader().use { it.readText() })
-            c.disconnect()
-            if (ok) runCatching { file.delete() }
-            ok
-        } catch (_: Exception) { false }
-    }
+        com.prayagi.netraplayer.BuildConfig.VERSION_NAME.ifBlank { "unknown" }
 
     /** FormSubmit answers {"success":"true"} only when it really queued the email; an HTTP 200 alone is not enough. */
     fun accepted(body: String): Boolean = Regex("\"success\"\\s*:\\s*\"?true\"?", RegexOption.IGNORE_CASE).containsMatchIn(body)
 
     /** The exact text a manual report contains, or null when no crash is saved on this device. */
     fun manualPreview(context: Context): String? {
-        val trace = runCatching { File(context.filesDir, LAST_FILE).readText() }.getOrDefault("")
-        if (trace.isBlank()) return null
-        return "App: $APP_NAME\nApp version: ${appVersion(context)}\nPhone model: ${Build.MODEL ?: "Unknown"}\nAndroid version: ${Build.VERSION.RELEASE ?: "Unknown"}\n\nLast crash (class names and code locations only):\n$trace"
+        val raw = runCatching { File(context.filesDir, LAST_FILE).readText() }.getOrDefault("")
+        if (raw.isBlank()) return null
+        val saved = unpack(raw)
+        val timeLine = saved.crashedAt?.let { "\nCrash time: " + formatCrashTime(it) } ?: ""
+        return "App: $APP_NAME\nApp version: ${saved.version ?: LEGACY_VERSION_LABEL}$timeLine\nPhone model: ${Build.MODEL ?: "Unknown"}\nAndroid version: ${Build.VERSION.RELEASE ?: "Unknown"}\n\nLast crash (class names and code locations only):\n${saved.trace}"
     }
 
     /** Sends the last saved crash on user request. true only if the service confirms. Call off the main thread. */
     fun sendManual(context: Context): Boolean {
-        val trace = runCatching { File(context.filesDir, LAST_FILE).readText() }.getOrDefault("")
-        if (trace.isBlank()) return false
+        val raw = runCatching { File(context.filesDir, LAST_FILE).readText() }.getOrDefault("")
+        if (raw.isBlank()) return false
+        val saved = unpack(raw)
         return try {
             val json = org.json.JSONObject()
             json.put("_subject", "[Netra] Manual crash report: $APP_NAME")
             json.put("_captcha", "false"); json.put("_template", "table")
             json.put("app", APP_NAME); json.put("device", Build.MODEL ?: "Unknown")
             json.put("android_version", Build.VERSION.RELEASE ?: "Unknown")
-            json.put("app_version", appVersion(context)); json.put("stack_trace", trace)
+            json.put("app_version", saved.version ?: LEGACY_VERSION_LABEL)
+            if (saved.crashedAt != null) json.put("crash_time", formatCrashTime(saved.crashedAt))
+            json.put("stack_trace", saved.trace)
             val c = URL(ENDPOINT).openConnection() as HttpURLConnection
             c.requestMethod = "POST"; c.connectTimeout = 10000; c.readTimeout = 15000; c.doOutput = true
-            c.setRequestProperty("Content-Type", "application/json"); c.setRequestProperty("Accept", "application/json")
+            c.setRequestProperty("Content-Type", "application/json"); c.setRequestProperty("Accept", "application/json"); c.setRequestProperty("Origin", "https://prayagi-store-and-services.github.io"); c.setRequestProperty("Referer", "https://prayagi-store-and-services.github.io/")
             c.outputStream.use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
             val ok = c.responseCode in 200..299 && accepted(c.inputStream.bufferedReader().use { it.readText() })
             c.disconnect()
