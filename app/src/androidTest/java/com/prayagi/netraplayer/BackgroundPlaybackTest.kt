@@ -177,8 +177,14 @@ class BackgroundPlaybackTest {
                 }
                 Thread.sleep(200)
             }
+            // A tutorial is a separate system window. An ACTION_CLICK return alone
+            // does not prove dismissal, so verify absence before touching the player.
+            val tutorialGoneUntil = System.currentTimeMillis() + 3000
+            while (find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Got it" } != null && System.currentTimeMillis() < tutorialGoneUntil) Thread.sleep(50)
+            assertTrue("Immersive tutorial dismissed before player touch", find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Got it" } == null)
             val touches = java.util.concurrent.atomic.AtomicInteger(0)
             var inputStates = ""
+            var physicalTapIssued = false
             var diagnosticPlayer: androidx.media3.ui.PlayerView? = null
             scenario.onActivity { activity ->
                 fun findPlayer(view: android.view.View): androidx.media3.ui.PlayerView? {
@@ -215,22 +221,27 @@ class BackgroundPlaybackTest {
                         fun dump(view: android.view.View, depth: Int = 0): String {
                             val bounds = android.graphics.Rect()
                             view.getGlobalVisibleRect(bounds)
-                            val state = if (view is androidx.media3.ui.PlayerView) " controllerFullyVisible=${view.isControllerFullyVisible} useController=${view.useController} playerBound=${view.player != null} hasWindowFocus=${view.hasWindowFocus()}" else ""
+                            val state = if (view is androidx.media3.ui.PlayerView) " viewIdentity=${System.identityHashCode(view)} retainedIdentity=${diagnosticPlayer?.let { System.identityHashCode(it) }} nativeControlVisibility=${view.findViewById<android.view.View>(androidx.media3.ui.R.id.exo_controller)?.visibility} controllerFullyVisible=${view.isControllerFullyVisible} useController=${view.useController} playerBound=${view.player != null} hasWindowFocus=${view.hasWindowFocus()}" else ""
                             return " ".repeat(depth) + "${view.javaClass.name} shown=${view.isShown} visibility=${view.visibility} clickable=${view.isClickable} bounds=$bounds$state\n" +
                                 if (view is android.view.ViewGroup) (0 until view.childCount).joinToString("") { dump(view.getChildAt(it), depth + 1) } else ""
                         }
-                        diagnostic = "lifecycle=${activity.lifecycle.currentState} activityFocus=${activity.hasWindowFocus()} fullscreen=${playerFullscreen.value}\n" + dump(activity.window.decorView)
+                        diagnostic = "overlayTracksPresent=${find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } != null} activeWindowId=${instrumentation.uiAutomation.rootInActiveWindow?.windowId} physicalTapIssued=$physicalTapIssued\n" + "lifecycle=${activity.lifecycle.currentState} activityFocus=${activity.hasWindowFocus()} fullscreen=${playerFullscreen.value}\n" + dump(activity.window.decorView)
                     }
                 }
                 val originalState = controllerVisible()
                 if (originalState != visible) {
                     scenario.onActivity { diagnosticPlayer?.performClick() }
                     Thread.sleep(500)
-                    diagnostic += "\nrealTouchUps=${touches.get()} inputStates=$inputStates retainedViewShown=${diagnosticPlayer?.isShown} directClickVisible=${controllerVisible()}"
+                    diagnostic += "\nphysicalTapIssued=$physicalTapIssued realTouchUps=${touches.get()} inputStates=$inputStates retainedViewShown=${diagnosticPlayer?.isShown} directClickVisible=${controllerVisible()}"
                 }
                 assertTrue("Controller fully-visible state equals $visible\n$diagnostic", originalState == visible)
             }
-            if (!controllerVisible()) shell("input tap 650 550")
+            // Establish a hidden starting state without racing the 4-second auto-hide
+            // boundary. The behavior under test still MUST pass via real touch.
+            scenario.onActivity { diagnosticPlayer?.hideController() }
+            awaitController(false)
+            physicalTapIssued = true
+            shell("input tap 650 550")
             awaitController(true)
             awaitNode("Tracks visible in fullscreen") { it.text?.toString() == "Tracks" }
             // Capture immediately after the settled state. Idle-wait capture can consume the auto-hide window.
