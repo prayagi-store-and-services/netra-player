@@ -11,6 +11,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.collect.ImmutableList
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.Before
 import org.junit.runner.RunWith
 import java.io.File
 
@@ -18,6 +19,15 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class PlayerSubtitleDiagnosticTest {
     private val ins get() = InstrumentationRegistry.getInstrumentation()
+    @Before fun grantExpectedNotificationPermissionOnEmulator() {
+        // MainActivity explicitly requests this runtime permission on launch.
+        // Scope is the disposable test app, never a user's installed phone.
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand(
+            "pm grant com.prayagi.netraplayer android.permission.POST_NOTIFICATIONS"
+        )).use { it.readBytes() }
+        assertEquals(android.content.pm.PackageManager.PERMISSION_GRANTED,
+            ins.targetContext.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS))
+    }
     private fun textGroup() = TrackGroup("text",Format.Builder().setSampleMimeType("application/x-subrip").setLanguage("en").build())
     private fun tracks(group:TrackGroup) = Tracks(ImmutableList.of(Tracks.Group(group,false,intArrayOf(C.FORMAT_HANDLED),booleanArrayOf(false))))
     private fun record(label:String,value:Any?) {
@@ -43,7 +53,20 @@ class PlayerSubtitleDiagnosticTest {
     private fun click(label:String) {
         ins.waitForIdleSync()
         ins.uiAutomation.waitForIdle(300,5000)
+        val deadline=System.currentTimeMillis()+10000
         var node=find(ins.uiAutomation.rootInActiveWindow,label)
+        while(node==null && System.currentTimeMillis()<deadline) {
+            Thread.sleep(100)
+            node=find(ins.uiAutomation.rootInActiveWindow,label)
+        }
+        if(node==null) {
+            snapshot("MISSING $label")
+            val file=File(ins.targetContext.getExternalFilesDir(null),"subtitle-diagnostics/missing-control.png")
+            file.parentFile?.mkdirs()
+            ins.uiAutomation.takeScreenshot()?.let { image ->
+                file.outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it) }
+            }
+        }
         assertNotNull("Diagnostic label missing: $label",node)
         while(node!=null && !node.isClickable)node=node.parent
         assertTrue("Diagnostic click not accepted: $label",node?.performAction(AccessibilityNodeInfo.ACTION_CLICK)==true)
