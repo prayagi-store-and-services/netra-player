@@ -20,6 +20,16 @@ for code in 90 91; do
   adb shell sha256sum /data/local/tmp/bspn-proof-$code.apk | grep -F "$sha" || exit 1
   test "$(adb shell stat -c%s /data/local/tmp/bspn-proof-$code.apk | tr -d '\r')" = "$size" || exit 1
 done
+cleanup_status=0
+cleanup_fixture_permissions() {
+  adb shell pm uninstall com.aistudio.batterysentinel.ntra > app/build/device-diagnostics/fixture-host-uninstall.txt 2>&1 || true
+  if adb shell pm path com.aistudio.batterysentinel.ntra | grep -q '^package:'; then cleanup_status=1; fi
+  adb shell appops set com.prayagi.netraplayer REQUEST_INSTALL_PACKAGES default > app/build/device-diagnostics/permission-reset.txt 2>&1 || cleanup_status=1
+  adb shell appops get com.prayagi.netraplayer REQUEST_INSTALL_PACKAGES >> app/build/device-diagnostics/permission-reset.txt 2>&1 || cleanup_status=1
+  if grep -Eq 'REQUEST_INSTALL_PACKAGES: allow' app/build/device-diagnostics/permission-reset.txt; then cleanup_status=1; fi
+  printf 'cleanup_status=%s\n' "$cleanup_status" >> app/build/device-diagnostics/permission-reset.txt
+}
+trap cleanup_fixture_permissions EXIT
 test_status=0
 gradle --no-daemon :app:connectedDebugAndroidTest --stacktrace || test_status=$?
 adb shell dumpsys activity lastanr > app/build/device-diagnostics/lastanr-after.txt 2>&1 || true
@@ -52,4 +62,7 @@ done
 adb pull /data/local/tmp/player-update-choice.png app/build/device-screenshots/update-choice.png || true
 adb pull /data/local/tmp/player-update-installer.png app/build/device-screenshots/update-installer.png || true
 adb shell run-as com.prayagi.netraplayer cat files/positive-installer-ui.txt > app/build/device-diagnostics/positive-installer-ui.txt || true
+cleanup_fixture_permissions
+trap - EXIT
+if [ "$cleanup_status" != 0 ]; then exit 1; fi
 exit $test_status
