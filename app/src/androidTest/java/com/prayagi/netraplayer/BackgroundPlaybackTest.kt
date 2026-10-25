@@ -184,12 +184,12 @@ class BackgroundPlaybackTest {
             assertTrue("Immersive tutorial dismissed before player touch", find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Got it" } == null)
             // Accessibility removal can precede WindowManager's input-window transaction.
             // A stale ImmersiveModeConfirmation input handle must not receive the real tap.
-            instrumentation.uiAutomation.syncInputTransactions()
+            instrumentation.waitForIdleSync()
             val inputReadyUntil = System.currentTimeMillis() + 5000
             var inputWindowReady = false
             while (System.currentTimeMillis() < inputReadyUntil) {
-                instrumentation.uiAutomation.syncInputTransactions()
-                val windows = shell("dumpsys window windows")
+                instrumentation.waitForIdleSync()
+                val windows = String(shell("dumpsys window windows"))
                 if (!windows.contains("ImmersiveModeConfirmation")) {
                     inputWindowReady = true
                     break
@@ -256,21 +256,21 @@ class BackgroundPlaybackTest {
             scenario.onActivity { diagnosticPlayer?.hideController() }
             awaitController(false)
             physicalTapIssued = true
-            instrumentation.uiAutomation.syncInputTransactions()
+            instrumentation.waitForIdleSync()
             shell("input tap 650 550")
             awaitController(true)
             awaitNode("Tracks visible in fullscreen") { it.text?.toString() == "Tracks" }
             // Capture immediately after the settled state. Idle-wait capture can consume the auto-hide window.
             shell("screencap -p /data/local/tmp/player-fullscreen.png")
             awaitController(true)
-            instrumentation.uiAutomation.syncInputTransactions()
+            instrumentation.waitForIdleSync()
             shell("input tap 650 550")
             awaitController(false)
             val hiddenUntil = System.currentTimeMillis() + 1500
             while (find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } != null && System.currentTimeMillis() < hiddenUntil) Thread.sleep(50)
             shell("screencap -p /data/local/tmp/player-fullscreen-hidden.png")
             assertTrue("Tracks overlay hides with controller", find(instrumentation.uiAutomation.rootInActiveWindow) { it.text?.toString() == "Tracks" } == null)
-            instrumentation.uiAutomation.syncInputTransactions()
+            instrumentation.waitForIdleSync()
             shell("input tap 650 550")
             awaitController(true)
             awaitNode("Tracks visible after tap") { it.text?.toString() == "Tracks" }
