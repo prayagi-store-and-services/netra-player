@@ -83,7 +83,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: bash scripts/device-tests.sh
+          script: bash scripts/subtitle-diagnostic.sh
       - name: Upload device evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -93,4 +93,5 @@ jobs:
             app/build/device-diagnostics/
             app/build/device-screenshots/
             app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
           if-no-files-found: warn
