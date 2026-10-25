@@ -46,31 +46,17 @@ internal fun runtimeStatus(context: Context, permission: String): String =
         "Unavailable"
     }
 
-internal fun installStatus(context: Context): String =
-    try { if (context.packageManager.canRequestPackageInstalls()) "Allowed" else "Not allowed" } catch (e: Exception) { "Unavailable" }
-
-internal fun openInstallSettings(context: Context) {
-    val i = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    try { context.startActivity(i) } catch (e: Exception) { context.startActivity(appSettingsIntent(context)) }
-}
-
 internal fun playerPermissions(): List<PermItem> = listOf(
-    PermItem("Notifications", "Shows playback controls and silent update alerts. Media controls may still appear when notifications are denied.",
+    PermItem("Notifications", "Shows playback controls while media plays. Media controls may still appear when notifications are denied.",
         { if (android.os.Build.VERSION.SDK_INT >= 33) runtimeStatus(it, android.Manifest.permission.POST_NOTIFICATIONS) else "Allowed" },
         { it.startActivity(appSettingsIntent(it)) }),
     PermItem("Background playback", "Keeps your chosen file playing when the screen is off, using Android's media playback service. Video rendering stops in the background.",
         { "Allowed (normal permission)" }, null),
     PermItem(
         "Internet",
-        "Used to check for new versions and to download an update you ask for. Nothing about your files is sent.",
+        "Used only for the optional daily usage count and for crash reports you choose to send. Nothing about your files is sent.",
         { "Always allowed (normal permission)" },
         null
-    ),
-    PermItem(
-        "Install apps",
-        "Used only when you tap Install on an update, so Android can install the new Netra Player file. Tap to open the Android page where you can allow or stop it.",
-        { installStatus(it) },
-        { openInstallSettings(it) }
     )
 )
 
