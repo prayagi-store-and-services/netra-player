@@ -158,7 +158,7 @@ fun PlayerScreen() {
                 when (section) {
                     Section.Play -> PlaySection()
                     Section.Update -> { UpdateSection(); DownloadManagerCard(); CrashReportCard(); PermissionsCard(playerPermissions()) }
-                    Section.About -> { AboutSection(); if (redesign) PlayerRoadmapCard() }
+                    Section.About -> { AboutSection(); HeatPreviewCard(); if (redesign) PlayerRoadmapCard() }
                 }
             }
         }
