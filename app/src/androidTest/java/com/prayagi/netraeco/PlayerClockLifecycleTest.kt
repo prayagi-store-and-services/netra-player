@@ -1,48 +1,40 @@
 package com.prayagi.netraplayer
 
-import androidx.activity.compose.setContent
-import androidx.compose.runtime.LaunchedEffect
-import kotlinx.coroutines.delay
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import java.util.concurrent.atomic.AtomicInteger
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class PlayerClockLifecycleTest {
-    @Test fun clockStopsInBackgroundAndResumesWithoutChangingMillisecondText() {
-        val ticks = AtomicInteger()
-        val legacyTicks = AtomicInteger()
+class PlayerClockRemovalTest {
+    @Test fun headerHasNoClockBeforeOrAfterBackgroundReturn() {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        fun hasClock(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            if (Regex(".*[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}.*").matches(node.text?.toString().orEmpty())) return true
+            return (0 until node.childCount).any { hasClock(node.getChild(it)) }
+        }
+        fun hasHeader(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            if (node.text?.toString()?.startsWith("Netra Player  v") == true) return true
+            return (0 until node.childCount).any { hasHeader(node.getChild(it)) }
+        }
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            scenario.onActivity { activity ->
-                activity.setContent {
-                    PlayerClockTicks { ticks.incrementAndGet() }
-                    // Exact original Header loop as a control: composition survives ON_STOP.
-                    LaunchedEffect(Unit) { while (true) { legacyTicks.incrementAndGet(); delay(33) } }
-                }
-            }
-            val deadline = android.os.SystemClock.elapsedRealtime() + 5000L
-            while (ticks.get() < 3 && android.os.SystemClock.elapsedRealtime() < deadline) Thread.sleep(20)
-            assertTrue("Visible clock must tick", ticks.get() >= 3)
-            scenario.moveToState(Lifecycle.State.CREATED)
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-            // Let an already queued composition cancellation finish before measuring the stopped interval.
-            Thread.sleep(150)
-            val stopped = ticks.get()
-            val legacyStopped = legacyTicks.get()
-            Thread.sleep(400)
-            assertEquals("Stopped activity must not keep a 33 ms clock running", stopped, ticks.get())
-            assertTrue("Original ungated loop still runs in the same stopped activity", legacyTicks.get() > legacyStopped)
+            fun assertNoClock() {
+                org.junit.Assert.assertTrue("Actual Player header must be visible, not hidden by an overlay", hasHeader(ins.uiAutomation.rootInActiveWindow))
+                assertFalse("Removed millisecond clock must not survive in the UI", hasClock(ins.uiAutomation.rootInActiveWindow))
+            }
+            assertNoClock()
+            scenario.moveToState(Lifecycle.State.CREATED)
             scenario.moveToState(Lifecycle.State.RESUMED)
-            val resumeDeadline = android.os.SystemClock.elapsedRealtime() + 5000L
-            while (ticks.get() <= stopped && android.os.SystemClock.elapsedRealtime() < resumeDeadline) Thread.sleep(20)
-            assertTrue("Clock resumes after returning", ticks.get() > stopped)
-            assertTrue(HeaderText.clock(java.util.Date()).matches(Regex("\\d{2}:\\d{2}:\\d{2}\\.\\d{3}")))
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            assertNoClock()
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand("screencap -p /data/local/tmp/player-clock-removed.png")).use { it.readBytes() }
+
         }
     }
 }
