@@ -99,7 +99,7 @@ object Net {
             val o = arr.getJSONObject(i)
             val repo = o.optString("repo")
             val pkg = o.optString("package")
-            if (!isTrustedRepo(repo) || pkg.isBlank()) null else CatalogApp(
+            if (!isTrustedRepo(repo) || !UpdateArtifactPolicy.catalogMatches(o.optString("id"), pkg, repo)) null else CatalogApp(
                 id = o.getString("id"),
                 name = o.getString("name"),
                 type = o.optString("type"),
@@ -183,6 +183,7 @@ object Net {
     }
 
     private fun downloadInternal(context: Context, app: CatalogApp, release: LatestRelease, onProgress: ((Long, Long, Long?) -> Unit)?): File {
+        check(UpdateArtifactPolicy.catalogMatches(app.id, app.packageName, app.repo)) { "Update catalog identity did not match." }
         check(UpdateArtifactPolicy.expectedSigner(app.packageName) != null) { "This app is unknown or on safety hold. No update was downloaded." }
         check(Regex("^[A-Za-z0-9._-]+$").matches(app.id) && isValidTag(release.tag)) { "Invalid update identity." }
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
