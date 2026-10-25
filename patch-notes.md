@@ -1,3 +1,13 @@
+# Version 1.1.17
+
+## What's new
+- Netra Player no longer checks for, downloads or installs updates by itself. New versions come from the Netra Eco app.
+- Removed the 6-hourly update check, the update notification, the background update download, the Downloads card, the "Check for update" button and the Install apps permission.
+- On the first start after this update, any scheduled update check, update notification or downloaded update file left by an older version is removed.
+- Playback, subtitles, Fit/Crop/Stretch, the widget, Android TV support, crash reports and the optional usage count are unchanged.
+
+Removed a permission (Install apps); no new permission or data collection. Media files stay on the device.
+
 # Version 1.1.16.7
 
 ## What's new
