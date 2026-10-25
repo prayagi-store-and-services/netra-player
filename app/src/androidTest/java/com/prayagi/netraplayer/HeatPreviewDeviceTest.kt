@@ -23,11 +23,29 @@ class HeatPreviewDeviceTest {
     }
     private fun all() = nodes(ins.uiAutomation.rootInActiveWindow)
     private fun label(s: String) = all().firstOrNull { it.text?.toString() == s }
-    private fun tap(n: AccessibilityNodeInfo?) {
-        var target = n
-        while (target != null && !target.isClickable) target = target.parent
-        assertTrue("Clickable control", target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
-        ins.waitForIdleSync()
+    private fun tapLabel(text: String) {
+        val deadline = System.currentTimeMillis() + 10000
+        while (System.currentTimeMillis() < deadline) {
+            var target = label(text)
+            target?.performAction(AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN)
+            while (target != null && !target.isClickable) target = target.parent
+            if (target != null && target.isEnabled && target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                ins.waitForIdleSync(); return
+            }
+            Thread.sleep(100)
+        }
+        shot("failure")
+        fail("Enabled clickable control: $text")
+    }
+    private fun enablePreview() {
+        val deadline = System.currentTimeMillis() + 10000
+        while (System.currentTimeMillis() < deadline) {
+            val toggle = all().firstOrNull { it.isCheckable }
+            if (toggle?.isChecked == true) return
+            toggle?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            Thread.sleep(200)
+        }
+        fail("Preview toggle did not become checked")
     }
     private fun shot(name: String) {
         android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand("screencap -p /data/local/tmp/player-heat-$name.png")).use { it.readBytes() }
@@ -50,13 +68,13 @@ class HeatPreviewDeviceTest {
             while (button != null && !button.isClickable) button = button.parent
             assertFalse("Default OFF", button!!.isEnabled)
             shot("off")
-            tap(all().firstOrNull { it.isCheckable })
-            tap(label("Take one local sample"))
+            enablePreview()
+            tapLabel("Take one local sample")
             await("This app:")
             assertNotNull(label("Clear local sample")); shot("sample")
-            tap(label("Clear local sample"))
+            tapLabel("Clear local sample")
             assertFalse(all().any { it.text?.toString()?.startsWith("This app:") == true })
-            tap(label("Take one local sample"))
+            tapLabel("Take one local sample")
             scenario.moveToState(Lifecycle.State.CREATED)
             Thread.sleep(5500)
             scenario.moveToState(Lifecycle.State.RESUMED)
