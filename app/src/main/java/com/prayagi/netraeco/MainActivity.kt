@@ -171,7 +171,7 @@ private fun Header() {
     val redesign by rememberPlayerDesign()
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
-    LaunchedEffect(Unit) { while (true) { now = Date(); delay(33) } }
+    PlayerClockTicks { now = it }
     Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(if (redesign) if (LocalPlayerDesignClock.current().toLocalDate() == GreetingPolicy.day) listOf(Color(0xFF78350F), Color(0xFF451A03)) else listOf(Color(0xFF092A3F), Color(0xFF04101E)) else listOf(Teal, TealDark))).statusBarsPadding().height(if (redesign) 76.dp else 56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
         Column {
             val version = remember { Net.installed(context, context.packageName)?.second?.ifBlank { null } ?: "Unavailable" }
@@ -619,3 +619,23 @@ internal fun trackChoiceLabel(label: String?, language: String?, number: Int): S
 
 /** Only the app-owned notification PendingIntent can open this non-exported entry. */
 class UpdateEntryActivity : MainActivity()
+
+/** Preserve the millisecond display while visible; no clock work while the activity is stopped. */
+@Composable
+internal fun PlayerClockTicks(onTick: (Date) -> Unit) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var started by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, _ ->
+            started = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(started) {
+        if (started) while (true) {
+            onTick(Date())
+            delay(33)
+        }
+    }
+}
