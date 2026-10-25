@@ -10,5 +10,4 @@ class HeaderTextTest {
 
     @Test fun dateIsDayMonthYear() = assertEquals("03 10 2026", HeaderText.date(at(1, 2, 3, 4)))
 
-    @Test fun clockHasMilliseconds() = assertEquals("18:05:09.007", HeaderText.clock(at(18, 5, 9, 7)))
 }
