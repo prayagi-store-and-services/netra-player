@@ -7,7 +7,7 @@ on:
         description: Release tag (must equal v plus versionName in app/build.gradle.kts, for example v1.0.1)
         required: true
       notes:
-        description: What changed (shown in the in-app update prompt)
+        description: What changed (shown by Netra Eco and on the release page)
         required: true
         default: Bug fixes and improvements.
 
@@ -70,7 +70,7 @@ jobs:
           VNAME="$(sed -n 's/^ *versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)"
           VCODE="$(sed -n 's/^ *versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)"
           test "$TAG" = "v$VNAME"
-          # Named copy for people. app-release.apk stays because the in-app updater needs that exact name.
+          # Named copy for people. app-release.apk stays because the Netra Eco updater downloads that exact name.
           NAMED="$D/NetraPlayer-$TAG.apk"
           cp "$D/app-release.apk" "$NAMED"
           SHA="$(sha256sum "$D/app-release.apk" | cut -d' ' -f1)"

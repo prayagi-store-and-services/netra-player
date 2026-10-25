@@ -21,6 +21,10 @@ class FolderSubtitleTest {
     private fun node(text: String): AccessibilityNodeInfo {
         val end = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < end) {
+            // Compose can draw the new label while UiAutomation still caches the old tree.
+            // Refresh observations only; never repeat a click that may already have worked.
+            ins.waitForIdleSync()
+            if (android.os.Build.VERSION.SDK_INT >= 33) ins.uiAutomation.clearCache()
             find(ins.uiAutomation.rootInActiveWindow, text)?.let { return it }
             if (ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName &&
                 text !in listOf("Open folder", "Download", "PlayerFixture", "Use this folder", "Allow")) {

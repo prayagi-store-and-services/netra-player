@@ -80,8 +80,8 @@ The header is the Netra standard: 56 dp, fixed, only the app name, the installed
 - Firestore REST (public project netra-ai-jan): once a day it adds +1 to the counter `netra_active/netra-player_<yyyyMMdd>`. No user ID, no location, no files, no device data. It is on by default and can be switched off in About.
 
 ## Permissions
-- INTERNET: update check and the usage count.
-- REQUEST_INSTALL_PACKAGES: installing an update you tapped.
+- INTERNET: the optional daily usage count and crash reports you choose to send.
+- Since v1.1.17 the app no longer requests REQUEST_INSTALL_PACKAGES; updates are installed by the Netra Eco app.
 
 ## Version in the header and "What's new" (v1.1.0)
 - The header now shows the installed version (read from Android's package info; "Unavailable" if Android does not return it). When "Check for update" finds a newer version, the release notes written for that version are shown before you tap Update. Notes come only from the release file in this repository's own releases; if there are none, nothing is shown. No new permission, no new network call, no new library.
@@ -90,9 +90,9 @@ The header is the Netra standard: 56 dp, fixed, only the app name, the installed
 ## Android TV (v1.0.1)
 - The app also installs on Android TV (leanback launcher, no touchscreen needed). This adds no permission. It is built and unit-tested in CI but not yet tried on a real TV by us.
 
-## Update safety
-- The updater only accepts releases from the prayagi-store-and-services organization, a valid vX.Y.Z tag and a 64-character sha256, and checks the downloaded size.
-- Installer files are deleted after the update is installed or cancelled.
+## Updates (v1.1.17)
+- The in-app updater was removed. The app no longer checks for, downloads or installs updates; the Netra Eco app does that and keeps the source, tag, size and SHA-256 checks there.
+- On the first start after the upgrade, scheduled update checks and downloaded installer files left by older versions are deleted.
 
 ## Dependencies
 - AndroidX Media3 (exoplayer, ui) 1.11.1.
