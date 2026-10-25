@@ -38,12 +38,14 @@ class HeatPreviewDeviceTest {
         fail("Enabled clickable control: $text")
     }
     private fun enablePreview() {
+        val toggle = all().firstOrNull { it.isCheckable }
+        assertNotNull("Preview switch exists", toggle)
+        assertFalse("Switch starts off", toggle!!.isChecked)
+        assertTrue("Switch click accepted", toggle.performAction(AccessibilityNodeInfo.ACTION_CLICK))
         val deadline = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < deadline) {
-            val toggle = all().firstOrNull { it.isCheckable }
-            if (toggle?.isChecked == true) return
-            toggle?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            Thread.sleep(200)
+            if (all().firstOrNull { it.isCheckable }?.isChecked == true) return
+            Thread.sleep(100)
         }
         fail("Preview toggle did not become checked")
     }
