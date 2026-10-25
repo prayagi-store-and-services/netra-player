@@ -81,7 +81,7 @@ for name in small-tracks-top small-tracks-bottom fullscreen-hidden fullscreen-sh
   adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
 done
 adb pull /data/local/tmp/player-gate-failure.xml app/build/device-diagnostics/gate-failure.xml || true
-for file in folder-failure-ui folder-failure-native; do
+for file in folder-failure-ui folder-failure-native original-before-apply; do
   adb pull /data/local/tmp/player-$file.txt app/build/device-diagnostics/$file.txt || true
 done
 for file in folder-failure-ui resize-diagnostic; do
