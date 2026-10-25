@@ -11,11 +11,20 @@ import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import com.google.common.collect.ImmutableList
 import org.junit.Test
+import org.junit.Before
 import org.junit.runner.RunWith
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class PlayerVisualTest {
+    @Before fun prepareExpectedNotificationPermission() {
+        val ins=InstrumentationRegistry.getInstrumentation()
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand(
+            "pm grant com.prayagi.netraplayer android.permission.POST_NOTIFICATIONS"
+        )).use { it.readBytes() }
+        org.junit.Assert.assertEquals(android.content.pm.PackageManager.PERMISSION_GRANTED,
+            ins.targetContext.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS))
+    }
     private fun clickLabel(text: String, scroll: Boolean = false) {
         val ins = InstrumentationRegistry.getInstrumentation()
         fun find(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
@@ -46,6 +55,13 @@ class PlayerVisualTest {
             }
             Thread.sleep(100)
         }
+        val context=ins.targetContext
+        val dir=File(context.getExternalFilesDir(null),"subtitle-diagnostics").apply { mkdirs() }
+        ins.uiAutomation.takeScreenshot()?.let { bitmap ->
+            File(dir,"original-missing-control.png").outputStream().use {
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)
+            }
+        }
         throw AssertionError("Missing clickable $text")
     }
 
@@ -54,11 +70,17 @@ class PlayerVisualTest {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             lateinit var player: ExoPlayer
             var closed = false
+            val showing = androidx.compose.runtime.mutableStateOf(true)
+            val generation = androidx.compose.runtime.mutableStateOf(0)
             val text = TrackGroup("text", Format.Builder().setSampleMimeType("application/x-subrip").setLanguage("en").build())
             val tracks = Tracks(ImmutableList.of(Tracks.Group(text, false, intArrayOf(C.FORMAT_HANDLED), booleanArrayOf(false))))
             scenario.onActivity { activity ->
                 player = ExoPlayer.Builder(activity).build()
-                activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+                activity.setContent { NetraTheme {
+                    if (showing.value) androidx.compose.runtime.key(generation.value) {
+                        TrackChoiceDialog(player, tracks) { closed = true; showing.value = false }
+                    }
+                } }
             }
             ins.waitForIdleSync()
             clickLabel("en")
@@ -69,11 +91,24 @@ class PlayerVisualTest {
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)
                 org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
-                closed = false
-                it.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
             }
             ins.waitForIdleSync()
+            ins.uiAutomation.waitForIdle(300, 5000)
+            fun hasDialog(node:android.view.accessibility.AccessibilityNodeInfo?):Boolean =
+                node != null && (node.text?.toString()=="Audio and subtitles" ||
+                    (0 until node.childCount).any { hasDialog(node.getChild(it)) })
+            org.junit.Assert.assertFalse("Cancel removes actual dialog before reopen",hasDialog(ins.uiAutomation.rootInActiveWindow))
+            scenario.onActivity { closed = false; generation.value++; showing.value = true }
+            ins.waitForIdleSync()
             clickLabel("en")
+            fun dump(n:android.view.accessibility.AccessibilityNodeInfo?):String = if(n==null) "" else
+                "${n.className} text=${n.text} checked=${n.isChecked} selected=${n.isSelected}\n" +
+                    (0 until n.childCount).joinToString("") { dump(n.getChild(it)) }
+            val beforeApply=dump(ins.uiAutomation.rootInActiveWindow)
+            val encoded=android.util.Base64.encodeToString(beforeApply.toByteArray(),android.util.Base64.NO_WRAP)
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand(
+                "printf '%s' '$encoded' | base64 -d > /data/local/tmp/player-original-before-apply.txt"
+            )).use { it.readBytes() }
             clickLabel("Use selected tracks")
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)

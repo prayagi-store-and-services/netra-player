@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      subtitle_diagnostic:
+        description: 'Run only the bounded subtitle diagnostic (not release clearance)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -83,7 +88,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: bash scripts/device-tests.sh
+          script: bash ${{ inputs.subtitle_diagnostic && 'scripts/subtitle-diagnostic.sh' || 'scripts/device-tests.sh' }}
       - name: Upload device evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -93,4 +98,5 @@ jobs:
             app/build/device-diagnostics/
             app/build/device-screenshots/
             app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
           if-no-files-found: warn

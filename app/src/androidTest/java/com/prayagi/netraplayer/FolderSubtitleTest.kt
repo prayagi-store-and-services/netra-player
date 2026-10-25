@@ -21,7 +21,9 @@ class FolderSubtitleTest {
     private fun node(text: String): AccessibilityNodeInfo {
         val end = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < end) {
-            find(ins.uiAutomation.rootInActiveWindow, text)?.let { return it }
+            val root = ins.uiAutomation.rootInActiveWindow
+            root?.refresh() // Drop stale root data after Compose relayout before this exact AX assertion.
+            find(root, text)?.let { return it }
             if (ins.uiAutomation.rootInActiveWindow?.packageName?.toString() == ins.targetContext.packageName &&
                 text !in listOf("Open folder", "Download", "PlayerFixture", "Use this folder", "Allow")) {
                 fun scroll(n: AccessibilityNodeInfo?): Boolean {
@@ -38,7 +40,21 @@ class FolderSubtitleTest {
         fun dump(n: AccessibilityNodeInfo?, depth: Int = 0): String = if (n == null) "" else
             " ".repeat(depth) + "${n.className} text=${n.text} desc=${n.contentDescription}\n" +
                 (0 until n.childCount).joinToString("") { dump(n.getChild(it), depth + 1) }
-        java.io.File(ins.targetContext.getExternalFilesDir(null), "folder-failure-ui.txt").writeText(dump(ins.uiAutomation.rootInActiveWindow))
+        val tree = dump(ins.uiAutomation.rootInActiveWindow)
+        val encoded = android.util.Base64.encodeToString(tree.toByteArray(), android.util.Base64.NO_WRAP)
+        shell("printf '%s' '$encoded' | base64 -d > /data/local/tmp/player-folder-failure-ui.txt")
+        var native = ""
+        ins.runOnMainSync {
+            fun views(v: android.view.View) {
+                if (v is androidx.media3.ui.PlayerView) native += "PlayerView resize=${v.resizeMode} visibility=${v.visibility} shown=${v.isShown}\n"
+                if (v is android.widget.TextView) native += "TextView text=${v.text} visibility=${v.visibility}\n"
+                if (v is android.view.ViewGroup) for (i in 0 until v.childCount) views(v.getChildAt(i))
+            }
+            androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).forEach { views(it.window.decorView) }
+        }
+        val native64 = android.util.Base64.encodeToString(native.toByteArray(), android.util.Base64.NO_WRAP)
+        shell("printf '%s' '$native64' | base64 -d > /data/local/tmp/player-folder-failure-native.txt")
         throw AssertionError("Missing $text")
     }
     private fun click(text: String) {

@@ -13,6 +13,13 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
     <queries>
+        <package android:name="com.aistudio.batterysentinel.ntra" />
+        <package android:name="com.aistudio.reasoningquiz.tark" />
+        <package android:name="com.aistudio.netrasensorhub.kxmpzq" />
+        <package android:name="com.aistudio.sensorguard.prvsec" />
+        <package android:name="com.prayagi.netratrikaal" />
+        <package android:name="com.prayagi.netraeco" />
+        <package android:name="com.netracharge.app" />
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
     </queries>
 

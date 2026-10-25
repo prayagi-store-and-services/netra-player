@@ -42,6 +42,25 @@ jobs:
           -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -noprompt
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest --stacktrace
+      - name: Refuse duplicate or non-monotonic release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          VNAME="$(sed -n 's/^ *versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)"
+          VCODE="$(sed -n 's/^ *versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)"
+          test "$TAG" = "v$VNAME"
+          gh release list --limit 100 --json tagName > "$RUNNER_TEMP/release-history.json"
+          jq -e --arg tag "$TAG" 'all(.[]; .tagName != $tag)' "$RUNNER_TEMP/release-history.json"
+          gh release view --json tagName --jq .tagName > "$RUNNER_TEMP/previous-tag.txt"
+          PREVIOUS="$(cat "$RUNNER_TEMP/previous-tag.txt")"
+          mkdir -p "$RUNNER_TEMP/previous-release"
+          gh release download "$PREVIOUS" --pattern latest.json --pattern app-release.apk --dir "$RUNNER_TEMP/previous-release"
+          OLD_CODE="$(jq -er '.versionCode | numbers' "$RUNNER_TEMP/previous-release/latest.json")"
+          test "$VCODE" -gt "$OLD_CODE"
+          EXPECTED_SHA="$(jq -er '.sha256' "$RUNNER_TEMP/previous-release/latest.json")"
+          echo "$EXPECTED_SHA  $RUNNER_TEMP/previous-release/app-release.apk" | sha256sum --check --strict
       - name: Restore signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -58,7 +77,15 @@ jobs:
       - name: Verify the APK is signed
         run: |
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)"
-          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk
+          set -euo pipefail
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee "$RUNNER_TEMP/candidate-certs.txt"
+          "$APKSIGNER" verify --print-certs "$RUNNER_TEMP/previous-release/app-release.apk" | tee "$RUNNER_TEMP/previous-certs.txt"
+          EXPECTED=543b46402206ae0022d352f65bea618386bd7aa681b4d5bcfb5ce02bac49c8c4
+          for label in candidate previous; do
+            test "$(grep -c '^Signer #[0-9]* certificate SHA-256 digest:' "$RUNNER_TEMP/$label-certs.txt")" = 1
+            ACTUAL="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/$label-certs.txt" | tr '[:upper:]' '[:lower:]')"
+            test "$ACTUAL" = "$EXPECTED"
+          done
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
