@@ -156,7 +156,7 @@ fun SelfDownloadButton(release: LatestRelease) {
     val item = all[k]
     Button(enabled = item?.state != DownloadCenter.DOWNLOADING, onClick = {
         if (item?.state == DownloadCenter.DONE) {
-            try { Net.install(context, DownloadCenter.file(context, k)) } catch (_: Exception) {}
+            try { Net.install(context, DownloadCenter.file(context, k)) } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Update refused. Delete the cached file and download again.", android.widget.Toast.LENGTH_LONG).show() }
         } else DownloadCenter.start(context, self, release)
     }) {
         Text(when (item?.state) {
@@ -185,7 +185,7 @@ fun DownloadManagerCard() {
                         DownloadCenter.DONE -> {
                             Text("Downloaded, " + mb(i.total) + ". Deleted automatically after it is installed.", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { try { Net.install(context, DownloadCenter.file(context, i.key)) } catch (_: Exception) {} }) { Text("Install") }
+                                Button(onClick = { try { Net.install(context, DownloadCenter.file(context, i.key)) } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Update refused. Delete the cached file and download again.", android.widget.Toast.LENGTH_LONG).show() } }) { Text("Install") }
                                 OutlinedButton(onClick = { DownloadCenter.delete(context, i.key) }) { Text("Delete") }
                             }
                         }
