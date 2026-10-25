@@ -38,4 +38,5 @@ adb pull /data/local/tmp/player-gate-failure.xml app/build/device-diagnostics/ga
 for file in folder-failure-ui resize-diagnostic; do
   adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/$file.txt app/build/device-diagnostics/$file.txt || true
 done
+adb pull /data/local/tmp/player-update-choice.png app/build/device-screenshots/update-choice.png || true
 exit $test_status
