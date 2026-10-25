@@ -16,4 +16,10 @@ class UpdateArtifactPolicyTest {
     @Test fun apiOnlyCodeUsesExactNameAndNewerArchive() { assertTrue(ok(expected=0)); assertFalse(ok(expected=0,archive=30)); assertFalse(ok(expected=0,name="wrong")) }
     @Test fun hubHoldAndUnknownPackagesRefused() { assertFalse(ok(target="com.aistudio.netrasensorhub.kxmpzq",archivePackage="com.aistudio.netrasensorhub.kxmpzq")); assertFalse(ok(target="unknown")) }
     @Test fun distinctChargeAndTrikaalPins() { assertNotEquals(pin,UpdateArtifactPolicy.expectedSigner("com.netracharge.app")); assertNotEquals(pin,UpdateArtifactPolicy.expectedSigner("com.prayagi.netratrikaal")); assertNotEquals(UpdateArtifactPolicy.expectedSigner("com.netracharge.app"),UpdateArtifactPolicy.expectedSigner("com.prayagi.netratrikaal")) }
+    @Test fun catalogCannotSwapAppIdentityOrRepository() {
+        assertTrue(UpdateArtifactPolicy.catalogMatches("netra-player",pkg,"prayagi-store-and-services/netra-player"))
+        assertFalse(UpdateArtifactPolicy.catalogMatches("netra-player","com.prayagi.netraeco","prayagi-store-and-services/netra-player"))
+        assertFalse(UpdateArtifactPolicy.catalogMatches("netra-player",pkg,"prayagi-store-and-services/netra-eco-app"))
+        assertFalse(UpdateArtifactPolicy.catalogMatches("netra-hub","com.aistudio.netrasensorhub.kxmpzq","prayagi-store-and-services/netra-hub"))
+    }
 }
