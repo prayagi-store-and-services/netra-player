@@ -87,6 +87,10 @@ done
 adb pull /data/local/tmp/player-update-choice.png app/build/device-screenshots/update-choice.png || true
 adb pull /data/local/tmp/player-update-installer.png app/build/device-screenshots/update-installer.png || true
 adb shell run-as com.prayagi.netraplayer cat files/positive-installer-ui.txt > app/build/device-diagnostics/positive-installer-ui.txt || true
+for name in clock-before clock-removed; do
+  adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
+done
+adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/subtitle-diagnostics app/build/device-diagnostics/ || true
 cleanup_fixture_permissions
 trap - EXIT
 if [ "$cleanup_status" != 0 ]; then exit 1; fi
