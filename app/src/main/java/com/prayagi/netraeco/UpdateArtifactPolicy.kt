@@ -12,6 +12,16 @@ internal object UpdateArtifactPolicy {
         "com.prayagi.netratrikaal" to "38bad1b7117f9cd94f8de94e2c9050861b6c7b482ce4241bfb9b4bf3c89fb8d8",
         "com.netracharge.app" to "814d2dd07f8ba510643795215f61083d1ebc905a5e9b3fba570faa5862381ab9"
     )
+    private val catalog = mapOf(
+        "battery-sentinel" to ("com.aistudio.batterysentinel.ntra" to "-Battery-Sentinel-Pro-Netra"),
+        "kbc" to ("com.aistudio.reasoningquiz.tark" to "KBC"),
+        "prayagi-privacy" to ("com.aistudio.sensorguard.prvsec" to "prayagi-Privacy-"),
+        "netra-player" to ("com.prayagi.netraplayer" to "netra-player"),
+        "netra-eco" to ("com.prayagi.netraeco" to "netra-eco-app"),
+        "netra-trikaal" to ("com.prayagi.netratrikaal" to "netra-trikaal")
+    )
+    fun catalogMatches(id: String, packageName: String, repo: String): Boolean =
+        catalog[id]?.let { it.first == packageName && repo == "prayagi-store-and-services/" + it.second } == true
     // Hub remains on the existing human-safety hold. Do not turn its cached APK into an install route.
     fun expectedSigner(packageName: String): String? = signers[packageName]
     fun identityMatches(expectedPackage: String, archivePackage: String?, installedCode: Long?,
