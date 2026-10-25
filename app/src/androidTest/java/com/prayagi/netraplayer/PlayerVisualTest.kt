@@ -11,11 +11,20 @@ import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import com.google.common.collect.ImmutableList
 import org.junit.Test
+import org.junit.Before
 import org.junit.runner.RunWith
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class PlayerVisualTest {
+    @Before fun prepareExpectedNotificationPermission() {
+        val ins=InstrumentationRegistry.getInstrumentation()
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand(
+            "pm grant com.prayagi.netraplayer android.permission.POST_NOTIFICATIONS"
+        )).use { it.readBytes() }
+        org.junit.Assert.assertEquals(android.content.pm.PackageManager.PERMISSION_GRANTED,
+            ins.targetContext.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS))
+    }
     private fun clickLabel(text: String, scroll: Boolean = false) {
         val ins = InstrumentationRegistry.getInstrumentation()
         fun find(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
@@ -45,6 +54,13 @@ class PlayerVisualTest {
                 ins.uiAutomation.waitForIdle(300, 5000)
             }
             Thread.sleep(100)
+        }
+        val context=ins.targetContext
+        val dir=File(context.getExternalFilesDir(null),"subtitle-diagnostics").apply { mkdirs() }
+        ins.uiAutomation.takeScreenshot()?.let { bitmap ->
+            File(dir,"original-missing-control.png").outputStream().use {
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)
+            }
         }
         throw AssertionError("Missing clickable $text")
     }
