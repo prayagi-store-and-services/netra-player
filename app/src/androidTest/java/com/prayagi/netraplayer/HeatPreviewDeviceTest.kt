@@ -27,7 +27,7 @@ class HeatPreviewDeviceTest {
         val deadline = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < deadline) {
             var target = label(text)
-            target?.performAction(AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN)
+            target?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             while (target != null && !target.isClickable) target = target.parent
             if (target != null && target.isEnabled && target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                 ins.waitForIdleSync(); return
