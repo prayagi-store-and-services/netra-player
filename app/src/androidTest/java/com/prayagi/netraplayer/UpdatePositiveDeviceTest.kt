@@ -34,9 +34,18 @@ class UpdatePositiveDeviceTest {
     private fun absent() { shell("pm uninstall $pkg"); assertNull("Fixture absent",Net.installed(c,pkg)) }
     @Test fun realSignedFirstInstallOlderUpgradeAndExternalInstallerReadsUri() {
         val old=fixture(90);val newer=fixture(91)
+        // Production resume refresh deletes unregistered cache. Use the real restored-download schema.
+        val downloads=c.getSharedPreferences("netra_eco_downloads",Context.MODE_PRIVATE)
+        for ((f,code) in listOf(old to 90,newer to 91)) {
+            check(downloads.edit().putString(f.name,listOf(pkg,"2.2.${code-80}",code,f.length(),"BSPN proof","battery-sentinel",hash(code)).joinToString("|")).commit())
+        }
         val pins=c.getSharedPreferences("verified_update_artifacts",Context.MODE_PRIVATE)
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             try {
+                for ((f,code) in listOf(old to 90,newer to 91)) {
+                    assertTrue("Registered fixture survives launch: $code",f.isFile)
+                    assertEquals("Post-launch fixture digest: $code",hash(code),MessageDigest.getInstance("SHA-256").digest(f.readBytes()).joinToString("") { "%02x".format(it) })
+                }
                 absent()
                 Net.verifyArchive(c,newer,pkg,release(91,newer))
                 assertTrue(shell("pm install -r /data/local/tmp/bspn-proof-90.apk").contains("Success"))
@@ -69,6 +78,8 @@ class UpdatePositiveDeviceTest {
             } finally {
                 shell("input keyevent 4")
                 absent();old.delete();newer.delete();pins.edit().remove(newer.name).commit()
+                downloads.edit().remove(old.name).remove(newer.name).commit()
+                DownloadCenter.refresh(c)
                 shell("appops set ${c.packageName} REQUEST_INSTALL_PACKAGES default")
             }
         }
