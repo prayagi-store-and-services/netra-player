@@ -1,7 +1,10 @@
 package com.prayagi.netraplayer
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
@@ -85,24 +88,28 @@ open class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
-        if (denyRegion()) return
-        UpdateAlert.handle(this, intent)
+        denyRegion()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (denyRegion()) return
-        UpdateAlert.start(this)
+        // Cancel the old self-updater's scheduled work and delete its downloaded files; updates come from Netra Eco now.
+        Thread { LegacyUpdateCleanup.purge(applicationContext) }.start()
         CrashReporter.install(this)
+        // Playback controls show through a notification while media plays.
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7432)
+        }
         setContent { NetraTheme { PlayerScreen() } }
     }
 
     override fun onResume() {
         super.onResume()
         if (regionDenied || denyRegion()) return
-        // Delete installer files left from a finished or cancelled update (not while a download runs).
         Thread {
-            Net.cleanLeftovers(applicationContext)
             UsagePing.pingIfDue(applicationContext)
         }.start()
     }
@@ -157,7 +164,7 @@ fun PlayerScreen() {
                 if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
                 when (section) {
                     Section.Play -> PlaySection()
-                    Section.Update -> { UpdateSection(); DownloadManagerCard(); CrashReportCard(); PermissionsCard(playerPermissions()) }
+                    Section.Update -> { UpdateSection(); CrashReportCard(); PermissionsCard(playerPermissions()) }
                     Section.About -> { AboutSection(); if (redesign) PlayerRoadmapCard() }
                 }
             }
@@ -490,37 +497,11 @@ private fun PlaySection() {
 @Composable
 private fun UpdateSection() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf<String?>(null) }
-    var release by remember { mutableStateOf<LatestRelease?>(null) }
+    val ecoInstalled = remember { isPackageInstalled(context, NETRA_ECO_PACKAGE) }
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Updates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
-                scope.launch {
-                    busy = true
-                    message = null
-                    release = null
-                    val self = Net.selfApp(context)
-                    val (installed, latest) = withContext(Dispatchers.IO) { Net.installed(context, self.packageName) to Net.fetchLatest(self) }
-                    val status = statusForRelease(installed?.first, installed?.second, latest)
-                    message = selfUpdateMessage(installed?.second.orEmpty().ifBlank { "Unavailable" }, status, latest?.versionName)
-                    if (status == Status.UpdateAvailable) release = latest
-                    busy = false
-                }
-            }) { Text(if (busy) "Checking..." else "Check for update") }
-            message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            progress?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            release?.let { r ->
-                val notes = usefulNotes(r.notes)
-                if (notes.isNotBlank()) {
-                    Text("What's new in " + r.versionName + ":", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text(notes.take(800), style = MaterialTheme.typography.bodySmall)
-                }
-                SelfDownloadButton(r)
-            }
+            Text(updateSourceMessage(ecoInstalled), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -542,7 +523,7 @@ private fun AboutSection() {
                 Switch(checked = usage, onCheckedChange = { usage = it; UsagePing.setEnabled(context, it) })
             }
             Spacer(Modifier.height(2.dp))
-            Text("Local playback works offline. Updates and optional reports or usage counts use internet.", style = MaterialTheme.typography.bodySmall)
+            Text("Local playback works offline. Optional usage counts and reports you send use internet. Updates come from the Netra Eco app.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -616,9 +597,6 @@ internal fun trackChoiceLabel(label: String?, language: String?, number: Int): S
         else -> "Track $number (language unavailable)"
     }
 }
-
-/** Only the app-owned notification PendingIntent can open this non-exported entry. */
-class UpdateEntryActivity : MainActivity()
 
 /** Preserve the millisecond display while visible; no clock work while the activity is stopped. */
 @Composable
