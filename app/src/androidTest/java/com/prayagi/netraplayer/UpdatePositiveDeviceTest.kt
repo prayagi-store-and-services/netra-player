@@ -80,7 +80,10 @@ class UpdatePositiveDeviceTest {
                 absent();old.delete();newer.delete();pins.edit().remove(newer.name).commit()
                 downloads.edit().remove(old.name).remove(newer.name).commit()
                 DownloadCenter.refresh(c)
-                shell("appops set ${c.packageName} REQUEST_INSTALL_PACKAGES default")
+                check(!pins.contains(newer.name))
+                check(!downloads.contains(old.name) && !downloads.contains(newer.name))
+                check(!old.exists() && !newer.exists())
+                android.util.Log.i("UpdatePositiveProof", "Fixture absent; files and preference records removed before host permission cleanup")
             }
         }
     }
