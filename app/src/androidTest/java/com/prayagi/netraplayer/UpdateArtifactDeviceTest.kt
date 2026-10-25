@@ -8,6 +8,32 @@ import org.junit.runner.RunWith
 import java.io.File
 @RunWith(AndroidJUnit4::class)
 class UpdateArtifactDeviceTest {
+    @Test fun notificationRequiresChoiceAndNotNowStartsNoDownload() {
+        val ins = InstrumentationRegistry.getInstrumentation()
+        val c = ins.targetContext
+        val before = DownloadCenter.items.value
+        val intent = android.content.Intent(c, UpdateEntryActivity::class.java)
+            .putExtra(UpdateAlert.EXTRA_AUTO_UPDATE,true).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        androidx.test.core.app.ActivityScenario.launch<UpdateEntryActivity>(intent).use {
+            val deadline = System.currentTimeMillis()+10000
+            var cancel: android.view.accessibility.AccessibilityNodeInfo? = null
+            fun nodes(n: android.view.accessibility.AccessibilityNodeInfo?): List<android.view.accessibility.AccessibilityNodeInfo> =
+                if(n==null) emptyList() else listOf(n)+(0 until n.childCount).flatMap { nodes(n.getChild(it)) }
+            while(System.currentTimeMillis()<deadline && cancel==null) {
+                cancel=nodes(ins.uiAutomation.rootInActiveWindow).firstOrNull { it.text?.toString()?.equals("Not now",ignoreCase=true)==true }
+                if(cancel==null) Thread.sleep(100)
+            }
+            assertNotNull("Explicit Not now choice",cancel)
+            val texts=nodes(ins.uiAutomation.rootInActiveWindow).mapNotNull { it.text?.toString() }
+            assertTrue(texts.any { it.contains("Download Netra Player update?") })
+            assertTrue(texts.any { it.contains("Keep Play Protect enabled") })
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(ins.uiAutomation.executeShellCommand("screencap -p /data/local/tmp/player-update-choice.png")).use { it.readBytes() }
+            assertTrue(cancel!!.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
+            ins.waitForIdleSync()
+            assertEquals(before,DownloadCenter.items.value)
+            assertFalse(Net.downloadsRunning())
+        }
+    }
     @Test fun unregisteredCacheIsRefusedBeforeInstallerLaunch() {
         val c = InstrumentationRegistry.getInstrumentation().targetContext
         val f = File(File(c.cacheDir,"updates").apply { mkdirs() }, "old-unregistered.apk")
