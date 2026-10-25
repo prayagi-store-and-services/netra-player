@@ -81,6 +81,9 @@ for name in small-tracks-top small-tracks-bottom fullscreen-hidden fullscreen-sh
   adb pull /data/local/tmp/player-$name.png app/build/device-screenshots/$name.png || true
 done
 adb pull /data/local/tmp/player-gate-failure.xml app/build/device-diagnostics/gate-failure.xml || true
+for file in folder-failure-ui folder-failure-native; do
+  adb pull /data/local/tmp/player-$file.txt app/build/device-diagnostics/$file.txt || true
+done
 for file in folder-failure-ui resize-diagnostic; do
   adb pull /sdcard/Android/data/com.prayagi.netraplayer/files/$file.txt app/build/device-diagnostics/$file.txt || true
 done
