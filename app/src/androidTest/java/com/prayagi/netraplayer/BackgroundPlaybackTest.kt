@@ -34,6 +34,9 @@ class BackgroundPlaybackTest {
     private fun awaitNode(label: String, scroll: Boolean = false, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {
         val until = System.currentTimeMillis() + 10000
         while (System.currentTimeMillis() < until) {
+            // Re-read Compose semantics after resume/notification transitions instead of cached nodes.
+            instrumentation.waitForIdleSync()
+            if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.clearCache()
             find(instrumentation.uiAutomation.rootInActiveWindow, predicate)?.let { return it }
             if (scroll) scrollPage(true)
             Thread.sleep(200)
