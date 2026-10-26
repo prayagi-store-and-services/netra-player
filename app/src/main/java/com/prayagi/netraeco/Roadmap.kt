@@ -11,7 +11,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +19,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.time.OffsetDateTime
 
@@ -63,9 +61,10 @@ object Roadmap {
 
 @Composable
 fun RoadmapSection(items: List<RoadmapItem>?) {
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val decoration = LocalPlayerDecorationClock.current
+    val now = decoration.now.time
     var showAll by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
+
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
         Column(Modifier.padding(16.dp)) {
             Text("Coming soon", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -76,15 +75,16 @@ fun RoadmapSection(items: List<RoadmapItem>?) {
             val next = Roadmap.next(items, now)
             if (next != null) {
                 Spacer(Modifier.height(4.dp))
+                if (decoration.paused) Text("Countdown paused (power saving)")
                 Text("Next release: " + next.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Text("Estimated in " + Roadmap.countdown(next.etaMillis!! - now), style = MaterialTheme.typography.bodyMedium)
+                Text("Estimated in " + decorationCountdown(next.etaMillis!! - now, decoration.paused), style = MaterialTheme.typography.bodyMedium)
             }
             val upcoming = items.filter { !it.released }.sortedBy { it.etaMillis ?: Long.MAX_VALUE }
             val shown = if (showAll) upcoming else upcoming.take(4)
             shown.forEach { it ->
                 Spacer(Modifier.height(8.dp))
                 Text(it.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                val left = it.etaMillis?.let { e -> Roadmap.countdown(e - now) } ?: "Unavailable"
+                val left = it.etaMillis?.let { e -> decorationCountdown(e - now, decoration.paused) } ?: "Unavailable"
                 Text(it.appNames + " | " + it.status + " | estimated: " + left, style = MaterialTheme.typography.bodySmall)
             }
             if (upcoming.size > 4) {
@@ -94,4 +94,12 @@ fun RoadmapSection(items: List<RoadmapItem>?) {
             Text("All dates are our own estimates and can change.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
         }
     }
+}
+
+/** Minute snapshots must not claim a live seconds countdown. Legacy pure formatter is unchanged. */
+internal fun decorationCountdown(ms: Long, paused: Boolean): String {
+    if (paused) return "Paused (power saving)"
+    if (ms <= 0L) return "Estimate passed, still being finished"
+    val minutes = ms / 60_000L
+    return "%dd %02dh %02dm (sampled)".format(minutes / 1440, minutes % 1440 / 60, minutes % 60)
 }
