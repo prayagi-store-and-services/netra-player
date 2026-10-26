@@ -9,7 +9,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import java.time.LocalDate
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
@@ -26,8 +25,8 @@ internal object GreetingPolicy {
 internal fun NavratriGreeting() {
     val context = LocalContext.current
     val clock = LocalPlayerDesignClock.current
-    var date by remember { mutableStateOf(clock().toLocalDate()) }
-    LaunchedEffect(clock) { while (true) { date = clock().toLocalDate(); delay(1000) } }
+    val sample = LocalPlayerDecorationClock.current.now
+    val date = remember(clock, sample) { clock().toLocalDate() }
     if (date != GreetingPolicy.day) return
     Text("Jay Mata Di", color = Color(0xFFFBBF24), fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
     DisposableEffect(date) {

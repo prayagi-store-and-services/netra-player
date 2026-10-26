@@ -1,7 +1,6 @@
 package com.prayagi.netraplayer
 
 import androidx.compose.runtime.*
-import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 
 /** Device-local calendar switch. No server, timezone conversion or stored rollout flag. */
@@ -16,21 +15,8 @@ internal val LocalPlayerDesignClock = staticCompositionLocalOf<() -> LocalDateTi
 @Composable
 internal fun rememberPlayerDesign(): State<Boolean> {
     val clock = LocalPlayerDesignClock.current
-    val enabled = remember { mutableStateOf(PlayerDesignGate.enabled(clock())) }
-    val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle, clock) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) enabled.value = PlayerDesignGate.enabled(clock())
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-    LaunchedEffect(clock) {
-        while (true) {
-            enabled.value = PlayerDesignGate.enabled(clock())
-            delay(1000)
-        }
-    }
+    val sample = LocalPlayerDecorationClock.current.now
+    val enabled = remember(clock, sample) { mutableStateOf(PlayerDesignGate.enabled(clock())) }
     return enabled
 }
 
