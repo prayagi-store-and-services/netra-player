@@ -120,10 +120,18 @@ private val TealDark = Color(0xFF004D40)
 
 @Composable
 fun NetraTheme(content: @Composable () -> Unit) {
+    val decoration = com.prayagi.netraplayer.power.adaptiveHeaderClock()
+    androidx.compose.runtime.CompositionLocalProvider(LocalPlayerDecorationClock provides decoration) {
+        NetraThemeContent(content)
+    }
+}
+
+@Composable
+private fun NetraThemeContent(content: @Composable () -> Unit) {
     val redesign by rememberPlayerDesign()
     val clock = LocalPlayerDesignClock.current
-    var festive by remember { mutableStateOf(clock().toLocalDate() == GreetingPolicy.day) }
-    LaunchedEffect(clock) { while (true) { festive = clock().toLocalDate() == GreetingPolicy.day; delay(1000) } }
+    val sample = LocalPlayerDecorationClock.current.now
+    val festive = remember(clock, sample) { clock().toLocalDate() == GreetingPolicy.day }
     val dark = isSystemInDarkTheme()
     val colors = if (redesign) darkColorScheme(
         primary = if (festive) Color(0xFFFBBF24) else Color(0xFF29DDE0), onPrimary = Color(0xFF002A34),
@@ -177,14 +185,14 @@ fun PlayerScreen() {
 private fun Header() {
     val redesign by rememberPlayerDesign()
     val context = LocalContext.current
-    var now by remember { mutableStateOf(Date()) }
-    PlayerClockTicks { now = it }
+    val decoration = LocalPlayerDecorationClock.current
+    val now = decoration.now
     Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(if (redesign) if (LocalPlayerDesignClock.current().toLocalDate() == GreetingPolicy.day) listOf(Color(0xFF78350F), Color(0xFF451A03)) else listOf(Color(0xFF092A3F), Color(0xFF04101E)) else listOf(Teal, TealDark))).statusBarsPadding().height(if (redesign) 76.dp else 56.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
         Column {
             val version = remember { Net.installed(context, context.packageName)?.second?.ifBlank { null } ?: "Unavailable" }
             Text("Netra Player  v$version", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
             if (redesign) Text("Play local. Stay private. No login.", fontSize = 12.sp, color = Color(0xFF80E7EB))
-            Text(HeaderText.date(now) + "   " + HeaderText.clock(now), fontSize = 12.sp, maxLines = 1, color = Color(0xFFD0ECE8))
+            Text(if (decoration.paused) "Clock paused (power saving)" else HeaderText.date(now) + "   " + java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(now), fontSize = 12.sp, maxLines = 1, color = Color(0xFFD0ECE8))
         }
     }
 }
@@ -595,25 +603,5 @@ internal fun trackChoiceLabel(label: String?, language: String?, number: Int): S
         name != null -> name
         lang != null -> lang
         else -> "Track $number (language unavailable)"
-    }
-}
-
-/** Preserve the millisecond display while visible; no clock work while the activity is stopped. */
-@Composable
-internal fun PlayerClockTicks(onTick: (Date) -> Unit) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var started by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
-    DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, _ ->
-            started = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-    LaunchedEffect(started) {
-        if (started) while (true) {
-            onTick(Date())
-            delay(33)
-        }
     }
 }
