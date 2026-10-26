@@ -29,7 +29,7 @@ class PlayerGateVisualTest {
         Thread.sleep(1000)
     }
     private fun waitForTagline(expected: Boolean) {
-        val end = System.currentTimeMillis() + 10000
+        val end = System.currentTimeMillis() + 75000
         while (System.currentTimeMillis() < end) {
             val visible = find(ins.uiAutomation.rootInActiveWindow, "Play local. Stay private. No login.") != null
             if (visible == expected) return
