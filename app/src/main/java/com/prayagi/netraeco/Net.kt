@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.Settings
-import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
 import org.json.JSONObject
 import java.io.File
@@ -151,79 +149,7 @@ object Net {
         siteUrl = ""
     )
 
-    /** Number of downloads running right now; installer files are only cleaned when it is 0. */
-    private val activeDownloads = java.util.concurrent.atomic.AtomicInteger(0)
-
-    fun downloadsRunning(): Boolean = activeDownloads.get() != 0
-
-    /** Deletes every file in the folder and returns how many were removed. */
-    fun cleanDir(dir: File?): Int {
-        var n = 0
-        dir?.listFiles()?.forEach { if (it.delete()) n++ }
-        return n
-    }
-
-    /**
-     * Deletes downloaded installer files so nothing stays in storage after an install. Called when the
-     * screen comes back (for example after the system installer closes) and never during a download.
-     */
-    fun cleanLeftovers(context: Context) {
-        if (activeDownloads.get() != 0) return
-        try { DownloadCenter.cleanFinished(context) } catch (_: Exception) {}
-    }
-
-    /** Downloads the APK and checks size and SHA-256. The file is deleted and an error thrown if anything is off. */
-    fun download(context: Context, app: CatalogApp, release: LatestRelease, onProgress: ((Long, Long, Long?) -> Unit)? = null): File {
-        activeDownloads.incrementAndGet()
-        try {
-            return downloadInternal(context, app, release, onProgress)
-        } finally {
-            activeDownloads.decrementAndGet()
-        }
-    }
-
-    private fun downloadInternal(context: Context, app: CatalogApp, release: LatestRelease, onProgress: ((Long, Long, Long?) -> Unit)?): File {
-        val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-        val file = File(dir, "${app.id}-${release.tag}.apk")
-        val partial = File.createTempFile("pending-", ".part", dir)
-        val c = open(release.apkUrl)
-        try {
-            if (c.responseCode != 200) throw IllegalStateException("Download failed (server answered ${c.responseCode}).")
-            val tracker = SpeedTracker()
-            var lastReport = 0L
-            c.inputStream.use { input ->
-                ApkIntegrity.copyVerified(input, partial, release.size, release.sha256) { total ->
-                    val now = System.currentTimeMillis()
-                    tracker.add(now, total)
-                    if (onProgress != null && now - lastReport >= 300L) {
-                        lastReport = now
-                        onProgress(total, release.size, tracker.etaSeconds(total, release.size))
-                    }
-                }
-            }
-            java.nio.file.Files.move(partial.toPath(), file.toPath(),
-                java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-            return file
-        } finally {
-            c.disconnect()
-            partial.delete()
-        }
-    }
-
-    /** Opens the system installer. Android installs only if the app is signed with the same key as the installed one. */
-    fun install(context: Context, file: File) {
-        if (!context.packageManager.canRequestPackageInstalls()) {
-            context.startActivity(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-            throw IllegalStateException("Allow installs from Netra Player, then tap the button again.")
-        }
-        val uri = FileProvider.getUriForFile(context, context.packageName + ".updates", file)
-        context.startActivity(
-            Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-    }
+    fun cleanDir(dir:File?):Int { var n=0;dir?.listFiles()?.forEach{if(it.delete())n++};return n }
+    /** Retired update cache cleanup, never creates an installer file. */
+    fun cleanLeftovers(context:Context){File(context.cacheDir,"updates").deleteRecursively()}
 }

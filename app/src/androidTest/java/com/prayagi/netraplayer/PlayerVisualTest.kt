@@ -166,7 +166,7 @@ class PlayerVisualTest {
 
 @RunWith(AndroidJUnit4::class)
 class UpdateEntrySecurityTest {
-    @Test fun launcherIgnoresUpdateExtraAndEntryIsPrivate() {
+    @Test fun legacyExtraIsRemovedAndEntryRemainsPrivate() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val info = context.packageManager.getActivityInfo(android.content.ComponentName(context, UpdateEntryActivity::class.java), 0)
         org.junit.Assert.assertFalse(info.exported)
@@ -174,7 +174,7 @@ class UpdateEntrySecurityTest {
             .putExtra(UpdateAlert.EXTRA_AUTO_UPDATE, true)
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             scenario.onActivity { activity ->
-                org.junit.Assert.assertTrue(activity.intent.getBooleanExtra(UpdateAlert.EXTRA_AUTO_UPDATE, false))
+                org.junit.Assert.assertFalse(activity.intent.hasExtra(UpdateAlert.EXTRA_AUTO_UPDATE))
             }
         }
         ActivityScenario.launch(UpdateEntryActivity::class.java).use { scenario ->

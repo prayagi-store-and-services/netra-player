@@ -94,7 +94,7 @@ open class MainActivity : ComponentActivity() {
         if (denyRegion()) return
         UpdateAlert.start(this)
         CrashReporter.install(this)
-        setContent { NetraTheme { PlayerScreen() } }
+        setContent { NetraTheme { AppUpdatePrompt(); PlayerScreen() } }
     }
 
     override fun onResume() {
@@ -102,7 +102,6 @@ open class MainActivity : ComponentActivity() {
         if (regionDenied || denyRegion()) return
         // Delete installer files left from a finished or cancelled update (not while a download runs).
         Thread {
-            Net.cleanLeftovers(applicationContext)
             UsagePing.pingIfDue(applicationContext)
         }.start()
     }
@@ -157,7 +156,7 @@ fun PlayerScreen() {
                 if (!isFull) FestivalBannerCard(modifier = Modifier.fillMaxWidth())
                 when (section) {
                     Section.Play -> PlaySection()
-                    Section.Update -> { UpdateSection(); DownloadManagerCard(); CrashReportCard(); PermissionsCard(playerPermissions()) }
+                    Section.Update -> { UpdateSection(); CrashReportCard(); PermissionsCard(playerPermissions()) }
                     Section.About -> { AboutSection(); if (redesign) PlayerRoadmapCard() }
                 }
             }
@@ -488,42 +487,7 @@ private fun PlaySection() {
 }
 
 @Composable
-private fun UpdateSection() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf<String?>(null) }
-    var release by remember { mutableStateOf<LatestRelease?>(null) }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Updates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = !busy, onClick = {
-                scope.launch {
-                    busy = true
-                    message = null
-                    release = null
-                    val self = Net.selfApp(context)
-                    val (installed, latest) = withContext(Dispatchers.IO) { Net.installed(context, self.packageName) to Net.fetchLatest(self) }
-                    val status = statusForRelease(installed?.first, installed?.second, latest)
-                    message = selfUpdateMessage(installed?.second.orEmpty().ifBlank { "Unavailable" }, status, latest?.versionName)
-                    if (status == Status.UpdateAvailable) release = latest
-                    busy = false
-                }
-            }) { Text(if (busy) "Checking..." else "Check for update") }
-            message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            progress?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            release?.let { r ->
-                val notes = usefulNotes(r.notes)
-                if (notes.isNotBlank()) {
-                    Text("What's new in " + r.versionName + ":", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text(notes.take(800), style = MaterialTheme.typography.bodySmall)
-                }
-                SelfDownloadButton(r)
-            }
-        }
-    }
-}
+private fun UpdateSection() { UpdateCheckCard(Modifier.fillMaxWidth()) }
 
 @Composable
 private fun AboutSection() {
