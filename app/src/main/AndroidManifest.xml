@@ -26,6 +26,7 @@
         android:label="Netra Player"
         android:supportsRtl="true"
         android:theme="@style/Theme.NetraPlayer">
+        <activity android:name="com.prayagi.netraplayer.EcoUpdateRouteActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
