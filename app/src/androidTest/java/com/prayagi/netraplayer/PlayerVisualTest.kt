@@ -76,8 +76,18 @@ class PlayerVisualTest {
             clickLabel("en")
             ins.waitForIdleSync()
             clickLabel("Use selected tracks")
-            // The accessibility click lands on the main thread; drain it before asserting.
-            ins.waitForIdleSync()
+            // The accessibility click lands on the main thread, and applying the selection can take
+            // another beat on a busy emulator. Poll the player state (bounded) instead of assuming
+            // one idle pass is enough; the assertions below still decide pass/fail.
+            val applyDeadline = System.currentTimeMillis() + 5000
+            var applied = false
+            while (System.currentTimeMillis() < applyDeadline && !applied) {
+                ins.waitForIdleSync()
+                scenario.onActivity {
+                    applied = closed && player.trackSelectionParameters.overrides.containsKey(text)
+                }
+                if (!applied) Thread.sleep(100)
+            }
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)
                 org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
