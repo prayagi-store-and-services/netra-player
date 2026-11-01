@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -426,6 +427,23 @@ private fun PlaySection() {
             catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
         }) { Text("Open .srt subtitles") }
 
+        // Headphone 3D ("stadium") sound: offered only with headphones connected,
+        // and only when this phone actually supports the effect.
+        val fx by HeadphoneEffect.state.collectAsState()
+        if (fx.headphonesConnected) {
+            if (fx.effectSupported) {
+                OutlinedButton(onClick = { HeadphoneEffect.setEnabled(!fx.effectOn) }) {
+                    Text(if (fx.effectOn) "3D stadium sound: On" else "3D stadium sound: Off", maxLines = 1)
+                }
+            } else {
+                Text(
+                    "3D stadium sound is not available on this phone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+            }
+        }
     }
     if (full && currentUri != null) {
         playerView(Modifier.fillMaxWidth().height(screenH.dp))

@@ -17,7 +17,12 @@ class PlaybackService : MediaSessionService() {
             setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             setHandleAudioBecomingNoisy(true)
+            // A stable session id lets the headphone 3D effect attach once.
+            setAudioSessionId(
+                (getSystemService(AUDIO_SERVICE) as android.media.AudioManager).generateAudioSessionId(),
+            )
         }
+        HeadphoneEffect.attach(this, player.audioSessionId)
         session = MediaSession.Builder(this, player).build()
     }
 
@@ -41,6 +46,7 @@ class PlaybackService : MediaSessionService() {
             it.release()
         }
         session = null
+        HeadphoneEffect.detach()
         super.onDestroy()
     }
 }
