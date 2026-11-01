@@ -151,7 +151,19 @@ class FolderSubtitleTest {
             node("Size: Crop")
             assertTrue("Crop maps to Media3 zoom", currentResize() == 4)
             capture("video-crop")
-            click("Size: Crop"); node("Size: Stretch")
+            click("Size: Crop")
+            // Same stale/no-op AX activation risk as the Stretch click below: Compose can
+            // relayout between lookup and activation, leaving resizeMode unchanged.
+            ins.waitForIdleSync()
+            Thread.sleep(700)
+            if (currentResize() == 4) {
+                val fresh = node("Size: Crop")
+                var target: AccessibilityNodeInfo? = fresh
+                while (target != null && !target.isClickable) target = target.parent
+                assertTrue("Fresh Crop action accepted", target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+                ins.waitForIdleSync()
+            }
+            node("Size: Stretch")
             assertTrue("Stretch maps to Media3 fill", currentResize() == 3)
             capture("video-stretch")
             click("Size: Stretch")
