@@ -74,7 +74,10 @@ class PlayerVisualTest {
             }
             ins.waitForIdleSync()
             clickLabel("en")
+            ins.waitForIdleSync()
             clickLabel("Use selected tracks")
+            // The accessibility click lands on the main thread; drain it before asserting.
+            ins.waitForIdleSync()
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)
                 org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
