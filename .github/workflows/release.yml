@@ -108,7 +108,7 @@ jobs:
           set -euo pipefail
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/badging.txt"
-          grep -Fq "package: name='com.prayagi.netraplayer' versionCode='32' versionName='1.1.16.10'" "$RUNNER_TEMP/badging.txt"
+          grep -Fq "package: name='com.prayagi.netraplayer' versionCode='33' versionName='1.1.17'" "$RUNNER_TEMP/badging.txt"
       - name: Upload verified signed candidate
         uses: actions/upload-artifact@v7
         with:
