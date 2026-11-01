@@ -155,5 +155,8 @@ No keys or tokens are stored in the app. Report problems through the Netra websi
 
 2026-10-23 crash-consent restore (1.1.16.5): crash reports are no longer sent automatically. A crash is still saved on the device with the same fields (app name, version, crash time, phone model, Android version, sanitized trace); the existing Crash report card shows exactly what will be sent and where before the user taps Send, and nothing leaves the phone without that explicit action. Removes the only automatic upload; no new data, permission or network change; existing saved reports untouched, nothing deleted. Restores the 7 Oct opt-in rule (server sends only after the user sees the data and agrees). CI verified; physical phone confirmation pending.
 
+## 1 November 2026
+Player 1.1.17 adds a headphone 3D stadium sound effect (Android Virtualizer on the playback audio session). New manifest permission: MODIFY_AUDIO_SETTINGS, a normal (non-runtime) permission required for audio effects; it is used only to create and toggle the effect on this app's own audio session. Headphone detection reads the system's current output device list only; nothing is recorded, stored or sent. The effect is user-controlled, default off, and auto-disables when headphones disconnect. Device support is probed at runtime and unsupported phones show an honest Unavailable note.
+
 ## 27 October 2026
 Player reads capped version metadata only; APK download/install and update-only provider are removed. Compatible Eco or the exact Player website page handles updates. This is not a Play policy or warning guarantee.
