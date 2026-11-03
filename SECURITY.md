@@ -1,3 +1,7 @@
+## v1.1.18 - update notice cadence
+
+Presentation/cadence change only. Update checks remain metadata-only (one small GitHub releases read; artifact fields are never read, nothing downloads). Cadence rises to at most every 6 hours with the same backoff; the settings card hides update status unless a newer version verifies. No new permission, dependency, endpoint or stored data.
+
 ## 1.1.16.10 metadata-only notices
 Daily battery/network-constrained WorkManager checks share a persisted attempt gate with foreground checks. Notification permission and blocked channels are respected; notices are version-deduplicated. Update taps resolve at tap time, falling back to the exact Eco website page if compatible Eco cannot open. No APK handling or install permission. Adds normal ACCESS_NETWORK_STATE for constrained background work. No new library, telemetry or server. This is not a vulnerability patch or proof of physical-device battery performance. Release requires final-head CI, independent review and native UI inspection.
 
