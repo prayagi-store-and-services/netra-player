@@ -69,8 +69,15 @@ class PlayerVisualTest {
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)
                 org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
+                // The test callback only records closure; unlike PlayerScreen it does not
+                // remove the dialog. Dispose that composition before reopening so the
+                // cancelled "Subtitles off" pending state cannot survive remember(tracks).
+                it.setContent { }
+            }
+            ins.waitForIdleSync()
+            scenario.onActivity { activity ->
                 closed = false
-                it.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+                activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
             }
             ins.waitForIdleSync()
             clickLabel("en")
