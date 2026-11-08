@@ -1,3 +1,6 @@
+## v1.1.20 - gesture controls
+
+UI change only. Touch gestures adjust the activity window brightness and the music stream volume through standard Android APIs, and seek the local player. No new permission, dependency, network endpoint or stored data; brightness resets to the system default on leaving the player. This is a playback/UI feature, not a vulnerability fix.
 ## v1.1.19 - picture in picture for video
 
 UI change only. Adds the supportsPictureInPicture activity attribute and a button that asks the system to enter PiP while a video plays. No new permission, dependency, network endpoint or stored data. Media remains on the device; PiP rendering is done by the system. This is a playback/UI feature, not a vulnerability fix.

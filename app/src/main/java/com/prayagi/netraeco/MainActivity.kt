@@ -9,6 +9,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -373,7 +376,16 @@ private fun PlaySection() {
         }
         lifecycle.addObserver(observer)
         player.addListener(listener)
-        onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); if (playerFullscreen.value) { playerFullscreen.value = false } }
+        onDispose {
+            lifecycle.removeObserver(observer); player.removeListener(listener)
+            if (playerFullscreen.value) { playerFullscreen.value = false }
+            val act = context as? android.app.Activity
+            if (act != null) {
+                val lp = act.window.attributes
+                lp.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                act.window.attributes = lp
+            }
+        }
     }
 
     if (choosingTracks && !inPip) TrackChoiceDialog(player, tracks) { choosingTracks = false }
@@ -382,12 +394,18 @@ private fun PlaySection() {
         try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
     }
     var controllerVisible by remember { mutableStateOf(true) }
+    var gestureText by remember { mutableStateOf<String?>(null) }
+    val playerViewHolder = remember { arrayOfNulls<PlayerView>(1) }
+    LaunchedEffect(gestureText) {
+        if (gestureText != null) { delay(800); gestureText = null }
+    }
     val playerView: @Composable (Modifier) -> Unit = { mod ->
         Box(mod.background(Color.Black)) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     PlayerView(ctx).apply {
+                        playerViewHolder[0] = this
                         this.player = player
                         useController = true
                         controllerShowTimeoutMs = 4000
@@ -406,6 +424,91 @@ private fun PlaySection() {
                     v.setFullscreenButtonClickListener { on -> setFull(on) }
                 }
             )
+            // Touch gestures, active only while the native controller is hidden so its buttons keep working.
+            if (!inPip && !controllerVisible) {
+                val audioManager = remember { context.getSystemService(android.media.AudioManager::class.java) }
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(player) {
+                            detectTapGestures(
+                                onTap = {
+                                    // This layer exists only while the controller is hidden, so a tap always brings it back.
+                                    playerViewHolder[0]?.showController()
+                                },
+                                onDoubleTap = { offset ->
+                                    val forward = offset.x >= size.width / 2f
+                                    player.seekTo(PlayerGestures.doubleTapTargetMs(player.currentPosition, forward, player.duration))
+                                    gestureText = if (forward) "+10s" else "-10s"
+                                }
+                            )
+                        }
+                        .pointerInput(player) {
+                            var startXFraction = 0.5f
+                            var accDx = 0f
+                            var accDy = 0f
+                            var mode = PlayerGestures.DragMode.UNDECIDED
+                            var startLevel = 0.5f
+                            var startVolume = 0
+                            var maxVolume = 15
+                            var startPosition = 0L
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    accDx = 0f; accDy = 0f
+                                    mode = PlayerGestures.DragMode.UNDECIDED
+                                    startXFraction = if (size.width > 0) offset.x / size.width.toFloat() else 0.5f
+                                    startPosition = player.currentPosition
+                                    if (audioManager != null) {
+                                        startVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+                                        maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                                    }
+                                    val act = context as? android.app.Activity
+                                    startLevel = act?.window?.attributes?.screenBrightness?.takeIf { it >= 0f } ?: 0.5f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    accDx += dragAmount.x; accDy += dragAmount.y
+                                    if (mode == PlayerGestures.DragMode.UNDECIDED) {
+                                        mode = PlayerGestures.decideDragMode(startXFraction, accDx, accDy)
+                                    }
+                                    when (mode) {
+                                        PlayerGestures.DragMode.BRIGHTNESS -> {
+                                            val v = PlayerGestures.levelAfterDrag(startLevel, accDy, size.height.toFloat())
+                                            val act = context as? android.app.Activity
+                                            if (act != null) {
+                                                val lp = act.window.attributes
+                                                lp.screenBrightness = v
+                                                act.window.attributes = lp
+                                            }
+                                            gestureText = "Brightness ${PlayerGestures.levelPercent(v)}%"
+                                        }
+                                        PlayerGestures.DragMode.VOLUME -> {
+                                            val base = if (maxVolume > 0) startVolume / maxVolume.toFloat() else 0.5f
+                                            val v = PlayerGestures.levelAfterDrag(base, accDy, size.height.toFloat())
+                                            val target = (v * maxVolume).toInt().coerceIn(0, maxVolume)
+                                            audioManager?.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, target, 0)
+                                            gestureText = "Volume $target/$maxVolume"
+                                        }
+                                        PlayerGestures.DragMode.SEEK -> {
+                                            gestureText = "Seek ${PlayerGestures.formatSeekDelta(PlayerGestures.seekDeltaMs(accDx, size.width.toFloat()))}"
+                                        }
+                                        PlayerGestures.DragMode.UNDECIDED -> { }
+                                    }
+                                    change.consume()
+                                },
+                                onDragEnd = {
+                                    if (mode == PlayerGestures.DragMode.SEEK) {
+                                        player.seekTo(PlayerGestures.seekTargetMs(startPosition, PlayerGestures.seekDeltaMs(accDx, size.width.toFloat()), player.duration))
+                                    }
+                                    mode = PlayerGestures.DragMode.UNDECIDED
+                                },
+                                onDragCancel = { mode = PlayerGestures.DragMode.UNDECIDED }
+                            )
+                        }
+                )
+            }
+            gestureText?.let {
+                Text(it, color = Color.White, fontSize = 16.sp, modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 12.dp, vertical = 6.dp))
+            }
             if (!inPip && (!full || controllerVisible)) {
                 Row(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (PipSupport.shouldOffer(hasVideo, pipAvailable)) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = {
@@ -428,7 +531,7 @@ private fun PlaySection() {
             }
         }
     }
-    if (!full) {
+    if (!full && !inPip) {
         OutlinedButton(onClick = {
             try { folderPicker.launch(null) }
             catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
@@ -502,7 +605,7 @@ private fun PlaySection() {
             OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open another file") }
         }
     }
-    if (!full) {
+    if (!full && !inPip) {
         if (folderFiles.isNotEmpty()) {
             Text("Folder files: ${folderFiles.size}")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
