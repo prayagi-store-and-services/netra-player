@@ -531,7 +531,7 @@ private fun PlaySection() {
             }
         }
     }
-    if (!full) {
+    if (!full && !inPip) {
         OutlinedButton(onClick = {
             try { folderPicker.launch(null) }
             catch (_: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
@@ -605,7 +605,7 @@ private fun PlaySection() {
             OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open another file") }
         }
     }
-    if (!full) {
+    if (!full && !inPip) {
         if (folderFiles.isNotEmpty()) {
             Text("Folder files: ${folderFiles.size}")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
