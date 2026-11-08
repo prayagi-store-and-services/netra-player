@@ -433,8 +433,8 @@ private fun PlaySection() {
                         .pointerInput(player) {
                             detectTapGestures(
                                 onTap = {
-                                    val pv = playerViewHolder[0]
-                                    if (pv != null) { if (pv.isControllerVisible) pv.hideController() else pv.showController() }
+                                    // This layer exists only while the controller is hidden, so a tap always brings it back.
+                                    playerViewHolder[0]?.showController()
                                 },
                                 onDoubleTap = { offset ->
                                     val forward = offset.x >= size.width / 2f
