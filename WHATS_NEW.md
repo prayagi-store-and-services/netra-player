@@ -1,3 +1,11 @@
+## 1.1.20 - Gesture controls on the player
+
+While the player controls are hidden:
+- Swipe up or down on the left half for screen brightness, on the right half for volume.
+- Swipe left or right to seek (a full-width swipe moves 4 minutes).
+- Double-tap the left half to jump back 10 seconds, the right half to jump forward 10 seconds.
+- Single tap brings the controls back; while the controls are visible their buttons work as before.
+Brightness returns to the system setting when you leave the player. Nothing new is collected or sent.
 ## 1.1.19 - Picture in picture for video
 
 - A "PiP" button appears on the player controls while a video file is playing, on phones that support picture-in-picture.

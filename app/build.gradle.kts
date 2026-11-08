@@ -12,8 +12,8 @@ android {
     minSdk = 26
     targetSdk = 36
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    versionCode = 35
-    versionName = "1.1.19"
+    versionCode = 36
+    versionName = "1.1.20" 8576294 (1.1.20: gesture controls on the player)
   }
 
   signingConfigs {
