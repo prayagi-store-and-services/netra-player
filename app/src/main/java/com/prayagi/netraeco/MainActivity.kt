@@ -106,6 +106,14 @@ open class MainActivity : ComponentActivity() {
             UsagePing.pingIfDue(applicationContext)
         }.start()
     }
+
+    private val pipModeState = mutableStateOf(false)
+    internal val inPipMode: androidx.compose.runtime.State<Boolean> get() = pipModeState
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        pipModeState.value = isInPictureInPictureMode
+    }
 }
 
 private val Teal = Color(0xFF00796B)
@@ -149,7 +157,8 @@ fun PlayerScreen() {
     val redesign by rememberPlayerDesign()
     var section by remember { mutableStateOf(Section.Play) }
     val full by playerFullscreen
-    val isFull = full && section == Section.Play
+    val inPip = (LocalContext.current as? MainActivity)?.inPipMode?.value == true
+    val isFull = (full || inPip) && section == Section.Play
     Column(Modifier.fillMaxSize().background(if (isFull) Color.Black else MaterialTheme.colorScheme.background)) {
         if (!isFull) { Header(); NavratriGreeting(); if (redesign) Footer(section) { section = it } }
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -238,6 +247,8 @@ private fun PlaySection() {
     var error by remember { mutableStateOf<String?>(null) }
     var currentUri by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }) }
     var hasVideo by remember { mutableStateOf(player.currentTracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)) }
+    val inPip = (context as? MainActivity)?.inPipMode?.value == true
+    val pipAvailable = remember { PipSupport.deviceSupports(context) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
     var choosingTracks by remember { mutableStateOf(false) }
     var videoFit by remember { mutableStateOf(VideoFit.FIT) }
@@ -365,7 +376,7 @@ private fun PlaySection() {
         onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); if (playerFullscreen.value) { playerFullscreen.value = false } }
     }
 
-    if (choosingTracks) TrackChoiceDialog(player, tracks) { choosingTracks = false }
+    if (choosingTracks && !inPip) TrackChoiceDialog(player, tracks) { choosingTracks = false }
     val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
     val openPicker = {
         try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
@@ -391,18 +402,25 @@ private fun PlaySection() {
                 },
                 update = { v ->
                     v.resizeMode = videoFit.resizeMode
+                    v.useController = !inPip
                     v.setFullscreenButtonClickListener { on -> setFull(on) }
                 }
             )
-            if (!full || controllerVisible) {
+            if (!inPip && (!full || controllerVisible)) {
                 Row(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (PipSupport.shouldOffer(hasVideo, pipAvailable)) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = {
+                        val act = context as? MainActivity
+                        if (act == null || !PipSupport.enter(act, player.videoSize.width, player.videoSize.height)) {
+                            error = "PiP is not available on this phone."
+                        }
+                    }) { Text("PiP", color = Color.White) }
                     if (hasVideo) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { videoFit = videoFit.next() }) {
                         Text("Size: ${videoFit.label}", color = Color.White)
                     }
                     OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { choosingTracks = true }) { Text("Tracks", color = Color.White) }
                 }
             }
-            if (!hasVideo && (!full || controllerVisible)) {
+            if (!inPip && !hasVideo && (!full || controllerVisible)) {
                 Column(Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 20.dp, end = 112.dp), horizontalAlignment = Alignment.Start) {
                     Text("Audio", color = Color(0xFF4DB6AC), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(title ?: "", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
@@ -445,7 +463,9 @@ private fun PlaySection() {
             }
         }
     }
-    if (full && currentUri != null) {
+    if (inPip && currentUri != null) {
+        playerView(Modifier.fillMaxSize())
+    } else if (full && currentUri != null) {
         playerView(Modifier.fillMaxWidth().height(screenH.dp))
     } else if (currentUri == null) {
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {

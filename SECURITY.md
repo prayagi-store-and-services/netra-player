@@ -1,3 +1,7 @@
+## v1.1.19 - picture in picture for video
+
+UI change only. Adds the supportsPictureInPicture activity attribute and a button that asks the system to enter PiP while a video plays. No new permission, dependency, network endpoint or stored data. Media remains on the device; PiP rendering is done by the system. This is a playback/UI feature, not a vulnerability fix.
+
 ## v1.1.18 - update notice cadence
 
 Presentation/cadence change only. Update checks remain metadata-only (one small GitHub releases read; artifact fields are never read, nothing downloads). Cadence rises to at most every 6 hours with the same backoff; the settings card hides update status unless a newer version verifies. No new permission, dependency, endpoint or stored data.
