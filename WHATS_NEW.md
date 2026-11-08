@@ -1,3 +1,9 @@
+## 1.1.19 - Picture in picture for video
+
+- A "PiP" button appears on the player controls while a video file is playing, on phones that support picture-in-picture.
+- Tap it to keep the video playing in a small floating window while you use other apps. The controls hide inside the small window; tap the window to use the system PiP controls.
+- Audio-only files do not get PiP. Nothing new is collected or sent.
+
 ## 1.1.18 - Cleaner update notices
 
 - Update checks now happen at most every 6 hours instead of once a day, so new versions are noticed sooner.
