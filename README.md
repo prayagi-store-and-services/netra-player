@@ -2,15 +2,15 @@
 
 Android local video and MP3 player by Prayagi Team, part of [Netra Ecosystem](https://prayagi-store-and-services.github.io/netra-eco/).
 
-## Public release: v1.1.16.8
+## Public release: v1.1.18
 
-[Release v1.1.16.8](https://github.com/prayagi-store-and-services/netra-player/releases/tag/v1.1.16.8), versionCode 30, is the current published build checked for this description.
+The current published release is [v1.1.18](https://github.com/prayagi-store-and-services/netra-player/releases/tag/v1.1.18). This description was last verified in detail against [v1.1.16.8](https://github.com/prayagi-store-and-services/netra-player/releases/tag/v1.1.16.8) (versionCode 30); line-by-line re-verification against v1.1.18 is pending.
 
 - Open a video or MP3 file through Android's file picker, or browse a selected folder with previous/next queue controls.
 - Continue the last selected file from its saved position. Playback runs in a Media3 service, with Android media controls and background audio subject to Android limits.
 - Choose supported audio/subtitle tracks and open an external `.srt` subtitle file. Unsupported files or tracks show an error or Unavailable; codec support depends on the device.
 - Local playback works offline. No login is required. Updates and optional crash reports or usage counts have separate network paths; local playback does not mean the entire app has no network activity.
-- The published v1.1.16.8 still contains the older update check and verified APK background-download path. Android confirmation is required to install. Do not describe it as Eco-only updating.
+- v1.1.16.8 contained the older update check and verified APK background-download path; whether v1.1.18 still does is not re-verified here. Android confirmation is required to install. Do not describe it as Eco-only updating.
 
 ## Unreleased main: v1.1.16.9
 
