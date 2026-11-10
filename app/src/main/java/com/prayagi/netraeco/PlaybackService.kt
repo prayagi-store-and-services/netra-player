@@ -22,6 +22,17 @@ class PlaybackService : MediaSessionService() {
                 (getSystemService(AUDIO_SERVICE) as android.media.AudioManager).generateAudioSessionId(),
             )
         }
+        // Session/notification queue transitions can happen with no activity.
+        // Restore this item's persisted choice before video is selected.
+        player.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) {
+                val audioOnly = item?.mediaId?.takeIf { it.isNotEmpty() }
+                    ?.let { AudioOnlyMode.isAudioOnly(this@PlaybackService, it) } ?: false
+                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO,
+                        AudioOnlyMode.disableVideoTrack(audioOnly, AudioOnlyMode.appForeground)).build()
+            }
+        })
         HeadphoneEffect.attach(this, player.audioSessionId)
         session = MediaSession.Builder(this, player).build()
     }

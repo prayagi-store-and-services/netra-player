@@ -15,6 +15,11 @@ import androidx.media3.common.Tracks
 internal object AudioOnlyMode {
     private const val PREFS = "audio_only_mode"
 
+    // Activity and service run on the main thread in the same process. A new
+    // process starts in the background until the player UI reports STARTED.
+    // The service uses this on queue transitions even without a UI listener.
+    internal var appForeground: Boolean = false
+
     fun isAudioOnly(context: Context, mediaId: String): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(key(mediaId), false)
 
