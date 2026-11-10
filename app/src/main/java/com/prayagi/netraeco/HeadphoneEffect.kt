@@ -33,6 +33,7 @@ object HeadphoneEffect {
     private var audioManager: AudioManager? = null
     private var deviceCallback: AudioDeviceCallback? = null
     private var wantedOn: Boolean = false
+    private var attachedSessionId: Int = 0
 
     /** Which output device types count as headphones for this feature. */
     fun isHeadphoneDevice(type: Int): Boolean = when (type) {
@@ -46,12 +47,17 @@ object HeadphoneEffect {
         else -> false
     }
 
+    /** True when the current effect must be rebuilt for a new audio session (player/service recreation). */
+    internal fun shouldRecreate(hasEffect: Boolean, attachedId: Int, newId: Int): Boolean = !hasEffect || attachedId != newId
+
     @Synchronized
     fun attach(context: Context, audioSessionId: Int) {
         if (audioSessionId == 0) return
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager = am
-        if (virtualizer == null) {
+        if (shouldRecreate(virtualizer != null, attachedSessionId, audioSessionId)) {
+            // A new audio session owns a new effect; never leave the effect on a dead session.
+            try { virtualizer?.release() } catch (_: Exception) { }
             virtualizer = try {
                 Virtualizer(0, audioSessionId).also { v ->
                     if (v.strengthSupported) {
@@ -62,6 +68,7 @@ object HeadphoneEffect {
                 Log.w("HeadphoneEffect", "3D stadium sound is not available on this device", e)
                 null
             }
+            attachedSessionId = if (virtualizer != null) audioSessionId else 0
         }
         if (deviceCallback == null) {
             val cb = object : AudioDeviceCallback() {
@@ -105,6 +112,7 @@ object HeadphoneEffect {
             virtualizer?.release()
         } catch (_: Exception) { }
         virtualizer = null
+        attachedSessionId = 0
         audioManager = null
         wantedOn = false
         _state.value = State()
