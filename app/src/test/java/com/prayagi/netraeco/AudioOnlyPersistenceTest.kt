@@ -1,7 +1,7 @@
 package com.prayagi.netraplayer
 
 import android.content.Context
-import androidx.test.core.app.ApplicationProvider
+import org.robolectric.RuntimeEnvironment
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,7 +11,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class AudioOnlyPersistenceTest {
     @Test fun savedChoiceIsPerItemAndSurvivesReload() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+        val context: Context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("audio_only_mode", Context.MODE_PRIVATE).edit().clear().commit()
         AudioOnlyMode.setAudioOnly(context, "content://fixture/video-a", true)
         assertTrue(AudioOnlyMode.isAudioOnly(context, "content://fixture/video-a"))
