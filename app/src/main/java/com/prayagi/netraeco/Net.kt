@@ -50,68 +50,6 @@ object Net {
     fun shaFromDigest(digest: String): String? =
         digest.removePrefix("sha256:").lowercase().takeIf { digest.startsWith("sha256:") && isValidSha256(it) }
 
-    /**
-     * Newest release, read fresh: GitHub's release API first (a cache-busting parameter and no-cache header, so a just
-     * published release shows within seconds), then that tag's latest.json, then the older cached latest.json file.
-     * A release without a latest.json file (Battery Sentinel) is built from the API's size and SHA-256, with no version code.
-     */
-    fun fetchLatest(app: CatalogApp): LatestRelease? {
-        val fromApi = try {
-            val body = fetchText("https://api.github.com/repos/${app.repo}/releases/latest?_=${System.currentTimeMillis()}", fresh = true)
-            if (body == null) null else {
-                val o = JSONObject(body)
-                val tag = o.getString("tag_name")
-                if (!isValidTag(tag)) null else {
-                    val assets = o.getJSONArray("assets")
-                    var latestJsonUrl: String? = null
-                    var apkSize = 0L
-                    var apkSha: String? = null
-                    for (i in 0 until assets.length()) {
-                        val a = assets.getJSONObject(i)
-                        when (a.optString("name")) {
-                            "latest.json" -> latestJsonUrl = "https://github.com/${app.repo}/releases/download/$tag/latest.json"
-                            "app-release.apk" -> { apkSize = a.optLong("size"); apkSha = shaFromDigest(a.optString("digest")) }
-                        }
-                    }
-                    val viaJson = latestJsonUrl?.let { fetchText(it) }?.let { parseLatest(it, app.repo) }
-                    when {
-                        viaJson != null && viaJson.tag == tag -> viaJson
-                        apkSha != null && apkSize > 0L -> LatestRelease(
-                            tag = tag, versionName = tag.removePrefix("v"), versionCode = 0L, notes = "",
-                            apkUrl = "https://github.com/${app.repo}/releases/download/$tag/app-release.apk",
-                            sha256 = apkSha, size = apkSize
-                        )
-                        else -> null
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            null
-        }
-        return fromApi ?: fetchText(app.latestJsonUrl, fresh = true)?.let { parseLatest(it, app.repo) }
-    }
-
-    fun parseCatalog(json: String): List<CatalogApp> = try {
-        val arr = JSONObject(json).getJSONArray("projects")
-        (0 until arr.length()).mapNotNull { i ->
-            val o = arr.getJSONObject(i)
-            val repo = o.optString("repo")
-            val pkg = o.optString("package")
-            if (!isTrustedRepo(repo) || pkg.isBlank()) null else CatalogApp(
-                id = o.getString("id"),
-                name = o.getString("name"),
-                type = o.optString("type"),
-                summary = o.optString("summary"),
-                repo = repo,
-                packageName = pkg,
-                latestJsonUrl = o.optString("latestJson").ifBlank { "https://github.com/$repo/releases/latest/download/latest.json" },
-                siteUrl = o.optString("site")
-            )
-        }
-    } catch (e: Exception) {
-        emptyList()
-    }
-
     fun parseLatest(json: String, repo: String): LatestRelease? = try {
         val o = JSONObject(json)
         val tag = o.getString("tag")
@@ -139,17 +77,5 @@ object Net {
         null
     }
 
-    /** Netra Eco itself, so the manual "Check for update" button can use the same download and install flow. */
-    const val SELF_REPO = "prayagi-store-and-services/netra-player"
-
-    fun selfApp(context: Context) = CatalogApp(
-        id = "netra-player", name = "Netra Player", type = "", summary = "", repo = SELF_REPO,
-        packageName = context.packageName,
-        latestJsonUrl = "https://github.com/$SELF_REPO/releases/latest/download/latest.json",
-        siteUrl = ""
-    )
-
     fun cleanDir(dir:File?):Int { var n=0;dir?.listFiles()?.forEach{if(it.delete())n++};return n }
-    /** Retired update cache cleanup, never creates an installer file. */
-    fun cleanLeftovers(context:Context){File(context.cacheDir,"updates").deleteRecursively()}
 }
