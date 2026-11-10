@@ -1,3 +1,9 @@
+## v1.1.21 - media selection and persisted audio-only mode
+
+Playback improvements, not a vulnerability patch. Audio/video MIME selection is expanded; missing or generic MIME uses a bounded extension list, not unrestricted file admission. Media3/device decoders still decide playback support. No new permissions, libraries or network endpoints. Audio-only preference keys contain the selected media URI in app-private preferences; backup remains disabled and these preferences are not uploaded. The service and activity respect that choice across queue and lifecycle changes. Stadium Sound remains an Android Virtualizer effect with honest device limitations. The release validation checks the signed APK package and version against source, plus the existing fixed certificate continuity check.
+
+Emulator coverage includes real local playback, audio-only UI toggle, activity recreation, background queue transition, notification controls, subtitles and narrow-screen track dialog. Physical-device battery, thermal, headphone acoustics, Bluetooth/headset interruption and full service/process-death recovery remain NOT VERIFIED. Do not describe this as physical-device certification.
+
 ## v1.1.20 - gesture controls
 
 UI change only. Touch gestures adjust the activity window brightness and the music stream volume through standard Android APIs, and seek the local player. No new permission, dependency, network endpoint or stored data; brightness resets to the system default on leaving the player. This is a playback/UI feature, not a vulnerability fix.
