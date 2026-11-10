@@ -602,6 +602,18 @@ private fun PlaySection() {
             playerView(Modifier.fillMaxWidth().aspectRatio(if (tv) 16f / 9f else 16f / 9f).clip(RoundedCornerShape(12.dp)))
             Text(title ?: "", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 2)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            var showInfo by remember { mutableStateOf(false) }
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { showInfo = !showInfo }) { Text(if (showInfo) "Hide media info" else "Media info") }
+            if (showInfo) {
+                val resolverMime = currentUri?.let { runCatching { context.contentResolver.getType(android.net.Uri.parse(it)) }.getOrNull() }
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = playerCardColors()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        MediaDiagnostics.panelText(title, resolverMime, MediaDiagnostics.flatten(tracks), error).forEach {
+                            Text(it, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
             OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open another file") }
         }
     }
