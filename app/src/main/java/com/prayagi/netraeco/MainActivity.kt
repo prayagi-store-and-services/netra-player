@@ -216,13 +216,23 @@ private fun displayName(context: Context, uri: Uri): String = try {
     "Selected file"
 }
 
-/** Player scope: video files and MP3 only. Some phones report MP3 as audio/mp3 or no type at all, so the file name is checked too. */
-internal fun isVideoOrMp3(mime: String?, name: String?): Boolean {
+/** Player scope: common audio and video. MIME type leads; the file extension is a fallback
+ *  only when the MIME is missing or generic (some phones report no type). Actual playback
+ *  still depends on Media3 extractors and device codecs - unsupported files fail with the
+ *  existing playback error path, never silently. */
+internal fun isPlayableMedia(mime: String?, name: String?): Boolean {
     val m = mime?.lowercase().orEmpty()
-    if (m.startsWith("video/")) return true
-    if (m == "audio/mpeg" || m == "audio/mp3") return true
-    return (m.isEmpty() || m == "application/octet-stream") && name?.lowercase()?.endsWith(".mp3") == true
+    if (m.startsWith("video/") || m.startsWith("audio/")) return true
+    if (m.isNotEmpty() && m != "application/octet-stream") return false
+    val ext = name?.lowercase()?.substringAfterLast('.', "")?.takeIf { it.isNotEmpty() } ?: return false
+    return ext in MEDIA_FALLBACK_EXTENSIONS
 }
+
+/** Extensions trusted only as a fallback when MIME is missing or application/octet-stream. */
+private val MEDIA_FALLBACK_EXTENSIONS = setOf(
+    "mp3", "m4a", "aac", "wav", "flac", "ogg", "oga", "opus",
+    "mp4", "m4v", "mkv", "avi", "webm", "3gp", "ts",
+)
 
 @Composable
 private fun PlaySection() {
@@ -266,7 +276,7 @@ private fun PlaySection() {
                 context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 folderFiles = withContext(Dispatchers.IO) { listFolderMedia(context, tree) }
                 folderPage = 0
-                error = if (folderFiles.isEmpty()) "No supported video or MP3 files in this folder." else null
+                error = if (folderFiles.isEmpty()) "No supported audio or video files in this folder." else null
             } catch (e: Exception) {
                 folderFiles = emptyList()
                 error = if (e.message == "Folder too large") "This folder has over 1000 media files. Choose a smaller folder." else "Folder unavailable. Choose it again."
@@ -327,8 +337,8 @@ private fun PlaySection() {
     androidx.activity.compose.BackHandler(enabled = full) { setFull(false) }
     var last by remember { mutableStateOf(LastPlayed.load(context)) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null && !isVideoOrMp3(context.contentResolver.getType(uri), displayName(context, uri))) {
-            error = "Netra Player plays video and MP3 files only. Please pick a video or an MP3."
+        if (uri != null && !isPlayableMedia(context.contentResolver.getType(uri), displayName(context, uri))) {
+            error = "Choose an audio or video file. Playback depends on the file format and this device."
         } else if (uri != null) {
             error = null
             title = displayName(context, uri)
@@ -391,7 +401,7 @@ private fun PlaySection() {
     if (choosingTracks && !inPip) TrackChoiceDialog(player, tracks) { choosingTracks = false }
     val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
     val openPicker = {
-        try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
+        try { picker.launch(arrayOf("video/*", "audio/*")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
     }
     var controllerVisible by remember { mutableStateOf(true) }
     var gestureText by remember { mutableStateOf<String?>(null) }
