@@ -53,6 +53,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          retention-days: 3
           name: Player-CodeQL-Kotlin-SARIF
           path: codeql-results/*.sarif
           if-no-files-found: error
@@ -75,6 +76,7 @@ jobs:
           output: codeql-results
       - uses: actions/upload-artifact@v7
         with:
+          retention-days: 3
           name: Player-CodeQL-Actions-SARIF
           path: codeql-results/*.sarif
           if-no-files-found: error
