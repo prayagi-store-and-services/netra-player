@@ -54,11 +54,19 @@ class PlayerVisualTest {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             lateinit var player: ExoPlayer
             var closed = false
+            val showDialog = androidx.compose.runtime.mutableStateOf(true)
+            val dialogGeneration = androidx.compose.runtime.mutableStateOf(0)
             val text = TrackGroup("text", Format.Builder().setSampleMimeType("application/x-subrip").setLanguage("en").build())
             val tracks = Tracks(ImmutableList.of(Tracks.Group(text, false, intArrayOf(C.FORMAT_HANDLED), booleanArrayOf(false))))
             scenario.onActivity { activity ->
                 player = ExoPlayer.Builder(activity).build()
-                activity.setContent { androidx.compose.runtime.key("first-dialog") { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } } }
+                activity.setContent {
+                    NetraTheme {
+                        if (showDialog.value) androidx.compose.runtime.key(dialogGeneration.value) {
+                            TrackChoiceDialog(player, tracks) { closed = true; showDialog.value = false }
+                        }
+                    }
+                }
             }
             ins.waitForIdleSync()
             clickLabel("en")
@@ -69,15 +77,21 @@ class PlayerVisualTest {
             scenario.onActivity {
                 org.junit.Assert.assertTrue(closed)
                 org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
-                // The test callback only records closure; unlike PlayerScreen it does not
-                // remove the dialog. Dispose it and use a distinct composition key on reopening so the
-                // cancelled "Subtitles off" pending state cannot survive remember(tracks).
-                it.setContent { }
             }
-            ins.waitForIdleSync()
-            scenario.onActivity { activity ->
+            // Exercise the real dialog lifecycle: Cancel removes the dialog from composition,
+            // and a fresh generation opens only after the old dialog window has disappeared.
+            val dismissedDeadline = System.currentTimeMillis() + 10000
+            fun dialogVisible(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+                if (node == null) return false
+                if (node.text?.toString() == "Audio and subtitles") return true
+                return (0 until node.childCount).any { dialogVisible(node.getChild(it)) }
+            }
+            while (dialogVisible(ins.uiAutomation.rootInActiveWindow) && System.currentTimeMillis() < dismissedDeadline) Thread.sleep(100)
+            org.junit.Assert.assertFalse("Cancelled dialog window removed", dialogVisible(ins.uiAutomation.rootInActiveWindow))
+            scenario.onActivity {
                 closed = false
-                activity.setContent { androidx.compose.runtime.key("reopened-dialog") { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } } }
+                dialogGeneration.value++
+                showDialog.value = true
             }
             ins.waitForIdleSync()
             clickLabel("en")
