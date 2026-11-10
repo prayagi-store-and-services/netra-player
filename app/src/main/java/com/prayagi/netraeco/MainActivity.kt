@@ -276,7 +276,7 @@ private fun PlaySection() {
                 context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 folderFiles = withContext(Dispatchers.IO) { listFolderMedia(context, tree) }
                 folderPage = 0
-                error = if (folderFiles.isEmpty()) "No supported video or MP3 files in this folder." else null
+                error = if (folderFiles.isEmpty()) "No supported audio or video files in this folder." else null
             } catch (e: Exception) {
                 folderFiles = emptyList()
                 error = if (e.message == "Folder too large") "This folder has over 1000 media files. Choose a smaller folder." else "Folder unavailable. Choose it again."
@@ -338,7 +338,7 @@ private fun PlaySection() {
     var last by remember { mutableStateOf(LastPlayed.load(context)) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && !isPlayableMedia(context.contentResolver.getType(uri), displayName(context, uri))) {
-            error = "Netra Player plays video and MP3 files only. Please pick a video or an MP3."
+            error = "Choose an audio or video file. Playback depends on the file format and this device."
         } else if (uri != null) {
             error = null
             title = displayName(context, uri)
