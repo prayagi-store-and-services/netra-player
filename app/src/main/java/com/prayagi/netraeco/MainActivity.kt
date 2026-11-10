@@ -32,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -325,7 +326,11 @@ private fun PlaySection() {
         else c.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
     }
     androidx.activity.compose.BackHandler(enabled = full) { setFull(false) }
-    var last by remember { mutableStateOf(LastPlayed.load(context)) }
+    var recents by remember { mutableStateOf(ResumeStore.recent(context, 5)) }
+    var favorites by remember { mutableStateOf(Favorites.list(context)) }
+    var favVersion by remember { mutableStateOf(0) }
+    var folderQuery by remember { mutableStateOf("") }
+    var folderOrder by remember { mutableStateOf(0) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && !isVideoOrMp3(context.contentResolver.getType(uri), displayName(context, uri))) {
             error = "Netra Player plays video and MP3 files only. Please pick a video or an MP3."
@@ -334,10 +339,13 @@ private fun PlaySection() {
             title = displayName(context, uri)
             try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
             currentUri = uri.toString()
-            LastPlayed.save(context, currentUri!!, title ?: "Selected file", 0L)
+            val priorPos = ResumeStore.positionFor(context, uri.toString())
+            ResumeStore.save(context, currentUri!!, title ?: "Selected file", priorPos ?: 0L)
+            recents = ResumeStore.recent(context, 5)
             PlayerWidgetProvider.refresh(context)
             player.setMediaItem(MediaItem.Builder().setUri(uri).setMediaId(uri.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
             player.prepare()
+            if (priorPos != null && priorPos >= ResumeStore.MIN_RESUME_MS) player.seekTo(priorPos)
             player.playWhenReady = true
         }
     }
@@ -353,7 +361,7 @@ private fun PlaySection() {
                     .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, true).build()
                 val u = currentUri
                 if (u != null) {
-                    LastPlayed.save(context, u, title ?: "Selected file", player.currentPosition)
+                    ResumeStore.save(context, u, title ?: "Selected file", player.currentPosition)
                     PlayerWidgetProvider.refresh(context)
                 }
             }
@@ -363,6 +371,14 @@ private fun PlaySection() {
                 title = item?.mediaMetadata?.title?.toString()
                 currentUri = item?.mediaId?.takeIf { it.isNotEmpty() }
                 error = null
+                val savedPos = currentUri?.let { ResumeStore.positionFor(context, it) }
+                if (savedPos != null && savedPos >= ResumeStore.MIN_RESUME_MS) player.seekTo(savedPos)
+            }
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                val u = currentUri
+                if (!isPlaying && u != null && player.currentPosition > 0L) {
+                    ResumeStore.save(context, u, title ?: "Selected file", player.currentPosition)
+                }
             }
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = playbackErrorMessage(e.errorCode) }
             override fun onTracksChanged(updated: androidx.media3.common.Tracks) {
@@ -541,6 +557,13 @@ private fun PlaySection() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(enabled = player.hasPreviousMediaItem(), onClick = { player.seekToPreviousMediaItem() }) { Text("Previous") }
                 OutlinedButton(enabled = player.hasNextMediaItem(), onClick = { player.seekToNextMediaItem() }) { Text("Next") }
+                val isFav = favVersion.let { currentUri != null && Favorites.isFavorite(context, currentUri!!) }
+                OutlinedButton(enabled = currentUri != null, onClick = {
+                    val u = currentUri ?: return@OutlinedButton
+                    Favorites.toggle(context, u, title ?: "Selected file")
+                    favorites = Favorites.list(context)
+                    favVersion++
+                }) { Text(if (isFav) "Favorited" else "Favorite") }
             }
         }
         OutlinedButton(enabled = currentUri != null, onClick = {
@@ -576,23 +599,47 @@ private fun PlaySection() {
                 Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("Plays on this phone only. Nothing is uploaded. Video and MP3 files only.", style = MaterialTheme.typography.bodySmall)
                 Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open video or MP3 file") }
-                val resume = last
-                if (resume != null) {
-                    OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
-                        try {
-                            val u = android.net.Uri.parse(resume.uri)
-                            error = null
-                            title = resume.name
-                            currentUri = resume.uri
-                            player.setMediaItem(MediaItem.Builder().setUri(u).setMediaId(u.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(title).build()).build())
-                            player.prepare()
-                            player.seekTo(resume.positionMs)
-                            player.playWhenReady = true
-                        } catch (e: Exception) {
-                            currentUri = null
-                            error = "This file can no longer be opened. Pick it again."
-                        }
-                    }) { Text("Continue: ${resume.name} at ${LastPlayed.formatPosition(resume.positionMs)}", maxLines = 2) }
+                if (recents.isNotEmpty()) {
+                    Text("Recently played", style = MaterialTheme.typography.labelLarge)
+                    recents.forEach { entry ->
+                        OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
+                            try {
+                                val u = android.net.Uri.parse(entry.uri)
+                                error = null
+                                title = entry.name
+                                currentUri = entry.uri
+                                player.setMediaItem(MediaItem.Builder().setUri(u).setMediaId(u.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(entry.name).build()).build())
+                                player.prepare()
+                                if (entry.positionMs >= ResumeStore.MIN_RESUME_MS) player.seekTo(entry.positionMs)
+                                player.playWhenReady = true
+                            } catch (e: Exception) {
+                                currentUri = null
+                                ResumeStore.remove(context, entry.uri)
+                                recents = ResumeStore.recent(context, 5)
+                                error = "This file can no longer be opened. Pick it again."
+                            }
+                        }) { Text("Resume: ${entry.name} (${LastPlayed.formatPosition(entry.positionMs)})", maxLines = 2) }
+                    }
+                }
+                if (favorites.isNotEmpty()) {
+                    Text("Favorites", style = MaterialTheme.typography.labelLarge)
+                    favorites.forEach { (favUri, favName) ->
+                        OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
+                            try {
+                                val u = android.net.Uri.parse(favUri)
+                                error = null
+                                title = favName
+                                currentUri = favUri
+                                player.setMediaItem(MediaItem.Builder().setUri(u).setMediaId(u.toString()).setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(favName).build()).build())
+                                player.prepare()
+                                ResumeStore.positionFor(context, favUri)?.takeIf { it >= ResumeStore.MIN_RESUME_MS }?.let { player.seekTo(it) }
+                                player.playWhenReady = true
+                            } catch (e: Exception) {
+                                currentUri = null
+                                error = "This file can no longer be opened. Pick it again."
+                            }
+                        }) { Text(favName, maxLines = 2) }
+                    }
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
@@ -606,17 +653,23 @@ private fun PlaySection() {
         }
     }
     if (!full && !inPip) {
+        val filteredFolderFiles = if (folderQuery.isBlank()) folderFiles else folderFiles.filter { it.name.contains(folderQuery.trim(), ignoreCase = true) }
+        val shownFolderFiles = when (folderOrder) { 1 -> filteredFolderFiles.sortedBy { it.name.lowercase() }; 2 -> filteredFolderFiles.sortedByDescending { it.name.lowercase() }; else -> filteredFolderFiles }
         if (folderFiles.isNotEmpty()) {
-            Text("Folder files: ${folderFiles.size}")
+            OutlinedTextField(value = folderQuery, onValueChange = { folderQuery = it; folderPage = 0 }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Search in this folder") })
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { folderOrder = (folderOrder + 1) % 3; folderPage = 0 }) { Text(when (folderOrder) { 1 -> "Order: A-Z"; 2 -> "Order: Z-A"; else -> "Order: folder" }) }
+            }
+            Text("Folder files: ${shownFolderFiles.size}")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(enabled = folderPage > 0, onClick = { folderPage-- }) { Text("Earlier files") }
-                OutlinedButton(enabled = (folderPage + 1) * 30 < folderFiles.size, onClick = { folderPage++ }) { Text("More files") }
+                OutlinedButton(enabled = (folderPage + 1) * 30 < shownFolderFiles.size, onClick = { folderPage++ }) { Text("More files") }
             }
         }
-        folderFiles.drop(folderPage * 30).take(30).forEachIndexed { offset, file ->
+        shownFolderFiles.drop(folderPage * 30).take(30).forEachIndexed { offset, file ->
             val index = folderPage * 30 + offset
             OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                player.setMediaItems(folderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
+                player.setMediaItems(shownFolderFiles.map { f -> MediaItem.Builder().setUri(f.uri).setMediaId(f.uri.toString())
                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(f.name).build()).build() }, index, 0L)
                 title = file.name
                 currentUri = file.uri.toString()
