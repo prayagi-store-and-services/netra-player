@@ -14,19 +14,19 @@ import java.util.TimeZone
  * Anonymous active-user count. At most once per UTC day (and once per UTC month) the app adds +1 to a public counter
  * document in Firestore (netra_active/<appId>_<yyyyMMdd> and <appId>_<yyyyMM>). The request carries NO device id, install id,
  * account, location, IP-derived data we keep, or any app data: just the document name and "increment by 1".
- * The user can turn it off in Settings (default is on).
+ * Disabled until the user explicitly enables it in Settings after reading the data and destination.
  */
 object UsagePing {
     const val APP_ID = "netra-player"
     private const val PREFS = "netra_usage_count"
-    private const val KEY_ENABLED = "enabled"
+    private const val KEY_ENABLED = "explicit_opt_in_v1"
     private const val KEY_DAY = "last_day"
     private const val KEY_MONTH = "last_month"
     private const val COMMIT_URL = "https://firestore.googleapis.com/v1/projects/netra-ai-jan/databases/(default)/documents:commit"
     private const val DOC_ROOT = "projects/netra-ai-jan/databases/(default)/documents/netra_active/"
 
     fun isEnabled(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, true)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, false)
 
     fun setEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_ENABLED, enabled).apply()
