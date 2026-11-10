@@ -58,7 +58,7 @@ class PlayerVisualTest {
             val tracks = Tracks(ImmutableList.of(Tracks.Group(text, false, intArrayOf(C.FORMAT_HANDLED), booleanArrayOf(false))))
             scenario.onActivity { activity ->
                 player = ExoPlayer.Builder(activity).build()
-                activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+                activity.setContent { androidx.compose.runtime.key("first-dialog") { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } } }
             }
             ins.waitForIdleSync()
             clickLabel("en")
@@ -70,14 +70,14 @@ class PlayerVisualTest {
                 org.junit.Assert.assertTrue(closed)
                 org.junit.Assert.assertFalse(C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes)
                 // The test callback only records closure; unlike PlayerScreen it does not
-                // remove the dialog. Dispose that composition before reopening so the
+                // remove the dialog. Dispose it and use a distinct composition key on reopening so the
                 // cancelled "Subtitles off" pending state cannot survive remember(tracks).
                 it.setContent { }
             }
             ins.waitForIdleSync()
             scenario.onActivity { activity ->
                 closed = false
-                activity.setContent { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } }
+                activity.setContent { androidx.compose.runtime.key("reopened-dialog") { NetraTheme { TrackChoiceDialog(player, tracks) { closed = true } } } }
             }
             ins.waitForIdleSync()
             clickLabel("en")
