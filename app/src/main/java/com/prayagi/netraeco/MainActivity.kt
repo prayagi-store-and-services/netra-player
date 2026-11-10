@@ -250,6 +250,12 @@ private fun PlaySection() {
     var error by remember { mutableStateOf<String?>(null) }
     var currentUri by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }) }
     var hasVideo by remember { mutableStateOf(player.currentTracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)) }
+    var videoAvailable by remember { mutableStateOf(AudioOnlyMode.hasVideoTrack(player.currentTracks)) }
+    var audioOnly by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }?.let { AudioOnlyMode.isAudioOnly(context, it) } ?: false) }
+    fun setVideoTrackEnabled(enabled: Boolean) {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, !enabled).build()
+    }
     val inPip = (context as? MainActivity)?.inPipMode?.value == true
     val pipAvailable = remember { PipSupport.deviceSupports(context) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
@@ -344,13 +350,12 @@ private fun PlaySection() {
     DisposableEffect(player, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
-                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, false).build()
+                // Foreground: video comes back ONLY when the user did not choose audio-only for this item.
+                setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(audioOnly, appForeground = true))
             }
             if (event == Lifecycle.Event.ON_STOP) {
                 // Screen off/background: detach video selection; audio continues in the service.
-                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, true).build()
+                setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(audioOnly, appForeground = false))
                 val u = currentUri
                 if (u != null) {
                     LastPlayed.save(context, u, title ?: "Selected file", player.currentPosition)
@@ -363,11 +368,14 @@ private fun PlaySection() {
                 title = item?.mediaMetadata?.title?.toString()
                 currentUri = item?.mediaId?.takeIf { it.isNotEmpty() }
                 error = null
+                audioOnly = currentUri?.let { AudioOnlyMode.isAudioOnly(context, it) } ?: false
+                setVideoTrackEnabled(!audioOnly)
             }
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = playbackErrorMessage(e.errorCode) }
             override fun onTracksChanged(updated: androidx.media3.common.Tracks) {
                 tracks = updated
                 hasVideo = updated.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)
+                videoAvailable = AudioOnlyMode.hasVideoTrack(updated)
             }
         }
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
@@ -388,6 +396,13 @@ private fun PlaySection() {
         }
     }
 
+    LaunchedEffect(player) {
+        val u = player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }
+        if (u != null) {
+            audioOnly = AudioOnlyMode.isAudioOnly(context, u)
+            setVideoTrackEnabled(!audioOnly)
+        }
+    }
     if (choosingTracks && !inPip) TrackChoiceDialog(player, tracks) { choosingTracks = false }
     val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
     val openPicker = {
@@ -520,6 +535,12 @@ private fun PlaySection() {
                     if (hasVideo) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { videoFit = videoFit.next() }) {
                         Text("Size: ${videoFit.label}", color = Color.White)
                     }
+                    if (videoAvailable) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = {
+                        val next = !audioOnly
+                        audioOnly = next
+                        currentUri?.let { AudioOnlyMode.setAudioOnly(context, it, next) }
+                        setVideoTrackEnabled(!next)
+                    }) { Text(if (audioOnly) "Play Video" else "Listen as Audio", color = Color.White) }
                     OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { choosingTracks = true }) { Text("Tracks", color = Color.White) }
                 }
             }
