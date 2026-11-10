@@ -721,26 +721,3 @@ internal fun trackChoiceLabel(label: String?, language: String?, number: Int): S
         else -> "Track $number (language unavailable)"
     }
 }
-
-/** Only the app-owned notification PendingIntent can open this non-exported entry. */
-class UpdateEntryActivity : MainActivity()
-
-/** Preserve the millisecond display while visible; no clock work while the activity is stopped. */
-@Composable
-internal fun PlayerClockTicks(onTick: (Date) -> Unit) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var started by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
-    DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, _ ->
-            started = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-    LaunchedEffect(started) {
-        if (started) while (true) {
-            onTick(Date())
-            delay(33)
-        }
-    }
-}
