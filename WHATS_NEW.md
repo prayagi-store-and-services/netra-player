@@ -1,3 +1,13 @@
+## 1.1.21 - Audio formats and video audio mode
+
+- Optional usage counting is off until you enable it after reading the data and destination. Older default-on settings do not count as explicit consent.
+
+- Choose common audio files as well as video. File support still depends on Media3 and the device's decoders.
+- For a video, tap "Listen as Audio" to keep its sound playing without the picture. "Play Video" switches back. The choice is saved per file and respected across foreground/background and queue changes.
+- Player controls wrap on narrow screens so Tracks stays accessible.
+- 3D Stadium Sound reattaches when the player gets a new audio session. The effect remains device-dependent and headphone-only.
+- Existing gesture and picture-in-picture improvements from 1.1.19/1.1.20 are included. No new permissions or network endpoints. Audio-mode choices are stored on this device, not uploaded.
+
 ## 1.1.20 - Gesture controls on the player
 
 While the player controls are hidden:

@@ -612,9 +612,9 @@ private fun PlaySection() {
     } else if (currentUri == null) {
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Plays on this phone only. Nothing is uploaded. Video and MP3 files only.", style = MaterialTheme.typography.bodySmall)
-                Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open video or MP3 file") }
+                Text("Play audio or video", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Selected media plays on this phone and is never uploaded. Format support depends on this device.", style = MaterialTheme.typography.bodySmall)
+                Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open audio or video file") }
                 val resume = last
                 if (resume != null) {
                     OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
