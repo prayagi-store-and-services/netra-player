@@ -680,11 +680,10 @@ private fun AboutSection() {
             Text("v$version | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
-                    Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Once a day the app adds 1 to a public counter so the Netra site can show roughly how many people use it. No ID, no location, no files.", style = MaterialTheme.typography.bodySmall)
+                    Text("Share anonymous usage count (optional)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Off unless you enable it. Sends this app's daily/monthly +1 counter to Google Firestore (Netra project). No media, file names, device ID, account or location in the request body. The service receives the network request.", style = MaterialTheme.typography.bodySmall)
                 }
                 Switch(checked = usage, onCheckedChange = { usage = it; UsagePing.setEnabled(context, it) })
-                Text("Off unless you choose to enable it. Sends this app's daily/monthly +1 counter to Google Firestore (Netra project). No media, file names, device ID, account or location in the request body. The service receives the network request.", style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.height(2.dp))
             Text("Local playback works offline. Updates and optional reports or usage counts use internet.", style = MaterialTheme.typography.bodySmall)
