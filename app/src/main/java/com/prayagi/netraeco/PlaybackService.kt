@@ -40,7 +40,7 @@ class PlaybackService : MediaSessionService() {
         session?.let {
             val item = it.player.currentMediaItem
             val uri = item?.mediaId?.takeIf { it.isNotEmpty() }
-            if (uri != null) LastPlayed.save(this, uri,
+            if (uri != null) ResumeStore.save(this, uri,
                 item.mediaMetadata.title?.toString() ?: "Selected file", it.player.currentPosition)
             it.player.release()
             it.release()
