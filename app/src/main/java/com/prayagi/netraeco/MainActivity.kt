@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -224,6 +226,7 @@ internal fun isVideoOrMp3(mime: String?, name: String?): Boolean {
     return (m.isEmpty() || m == "application/octet-stream") && name?.lowercase()?.endsWith(".mp3") == true
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlaySection() {
     val context = LocalContext.current
@@ -527,7 +530,9 @@ private fun PlaySection() {
                 Text(it, color = Color.White, fontSize = 16.sp, modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 12.dp, vertical = 6.dp))
             }
             if (!inPip && (!full || controllerVisible)) {
-                Row(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(Modifier.align(Alignment.TopEnd).fillMaxWidth().padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (PipSupport.shouldOffer(hasVideo, pipAvailable)) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = {
                         val act = context as? MainActivity
                         if (act == null || !PipSupport.enter(act, player.videoSize.width, player.videoSize.height)) {
