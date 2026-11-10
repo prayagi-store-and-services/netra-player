@@ -1,5 +1,7 @@
 ## 1.1.21 - Audio formats and video audio mode
 
+- Optional usage counting is off until you enable it after reading the data and destination. Older default-on settings do not count as explicit consent.
+
 - Choose common audio files as well as video. File support still depends on Media3 and the device's decoders.
 - For a video, tap "Listen as Audio" to keep its sound playing without the picture. "Play Video" switches back. The choice is saved per file and respected across foreground/background and queue changes.
 - Player controls wrap on narrow screens so Tracks stays accessible.

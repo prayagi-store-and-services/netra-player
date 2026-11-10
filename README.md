@@ -22,9 +22,9 @@ Whenever a feature or architecture changes, update the app/store/site/Eco descri
 
 ## Build
 
-Kotlin, Jetpack Compose and AndroidX Media3 ExoPlayer. `./gradlew testDebugUnitTest assembleRelease`.
+Kotlin, Jetpack Compose and AndroidX Media3 ExoPlayer. CI installs Gradle 9.3.1 with JDK 21 and an Android SDK, then runs `gradle :app:testDebugUnitTest :app:assembleRelease` with the release signing environment. No Gradle wrapper is committed.
 
 Use reviewable PRs and green checks at the exact reviewed head, not direct main pushes. Audit the signed APK's identity, certificate and contents before publication. See SECURITY.md and WHATS_NEW.md for the release and data boundaries.
 
 ## 1.1.21 candidate scope
-Common audio/video discovery, persisted Listen as Audio / Play Video mode and Stadium Sound audio-session rebind. Source support is not universal codec support. Audio-mode preference URIs stay in app-private preferences; backup is off. No new permissions, dependency or endpoint. Final combined-head CI and signed-candidate inspection are required before publication. Physical-device service/process-death, TV, headset and battery testing are not claimed.
+Common audio/video discovery, persisted Listen as Audio / Play Video mode, Stadium Sound audio-session rebind and explicit informed usage-counter opt-in. Source support is not universal codec support. Audio-mode preference URIs stay in app-private preferences; backup is off. No new permissions, dependency or endpoint. Final combined-head CI and signed-candidate inspection are required before publication. Physical-device service/process-death, TV, headset and battery testing are not claimed.

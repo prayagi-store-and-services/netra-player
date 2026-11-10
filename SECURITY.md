@@ -1,6 +1,6 @@
 ## v1.1.21 - media selection and persisted audio-only mode
 
-Playback improvements, not a vulnerability patch. Audio/video MIME selection is expanded; missing or generic MIME uses a bounded extension list, not unrestricted file admission. Media3/device decoders still decide playback support. No new permissions, libraries or network endpoints. Audio-only preference keys contain the selected media URI in app-private preferences; backup remains disabled and these preferences are not uploaded. The service and activity respect that choice across queue and lifecycle changes. Stadium Sound remains an Android Virtualizer effect with honest device limitations. The release validation checks the signed APK package and version against source, plus the existing fixed certificate continuity check.
+Playback and privacy-consent improvements, not a claimed vulnerability patch. Audio/video MIME selection is expanded; missing or generic MIME uses a bounded extension list, not unrestricted file admission. Media3/device decoders still decide playback support. No new permissions, libraries or network endpoints. Audio-only preference keys contain the selected media URI in app-private preferences; backup remains disabled and these preferences are not uploaded. The service and activity respect that choice across queue and lifecycle changes. Stadium Sound remains an Android Virtualizer effect with honest device limitations. The release validation checks the signed APK package and version against source, plus the existing fixed certificate continuity check.
 
 Emulator coverage includes real local playback, audio-only UI toggle, activity recreation, background queue transition, notification controls, subtitles and narrow-screen track dialog. Physical-device battery, thermal, headphone acoustics, Bluetooth/headset interruption and full service/process-death recovery remain NOT VERIFIED. Do not describe this as physical-device certification.
 
@@ -95,9 +95,13 @@ Netra Player is only a video and music player. It plays files that you choose on
 ## Standard header (v1.1.1)
 The header is the Netra standard: 56 dp, fixed, only the app name, the installed version and the live date and time. Everything else scrolls; only this header and the bottom bar stay fixed. No new permission, network call or library. Every shown value needs a real evidence source, otherwise "Unavailable".
 
-## What the app connects to
-- `https://github.com/prayagi-store-and-services/netra-player/releases/latest/download/latest.json` and the release APK, only for the "Check for update" button and the in-app update. The update is downloaded and then installed by you with the normal Android installer.
-- Firestore REST (public project netra-ai-jan): once a day it adds +1 to the counter `netra_active/netra-player_<yyyyMMdd>`. No user ID, no location, no files, no device data. It is on by default and can be switched off in About.
+## Current candidate network paths (v1.1.21)
+- GitHub version metadata only: `https://github.com/prayagi-store-and-services/netra-player/releases/latest/download/latest.json`. Player does not read APK artifact fields or download/install APKs. Update opens the exact Player Eco page.
+- Firestore REST (Netra project netra-ai-jan): optional daily/monthly +1 count. Disabled until explicit informed opt-in in About. The legacy default-on key is not migrated as consent. No media, file names, device/account ID or location in the request body. The service receives the network request, including its source IP in transit.
+- FormSubmit crash reports require preview and an explicit Send tap. Developer email and service destination are shown first. No automatic report upload.
+- Public Eco catalogue/roadmap and app metadata reads remain network paths. These statements do not claim hosting services lack network logs.
+
+Older version sections above describe historical behavior, not current APK downloads or default-on consent.
 
 ## Permissions
 - INTERNET: update check and the usage count.
