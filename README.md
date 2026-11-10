@@ -12,7 +12,7 @@ The current published release is [v1.1.18](https://github.com/prayagi-store-and-
 - Local playback works offline. No login is required. Updates and optional crash reports or usage counts have separate network paths; local playback does not mean the entire app has no network activity.
 - v1.1.16.8 contained the older update check and verified APK background-download path; whether v1.1.18 still does is not re-verified here. Android confirmation is required to install. Do not describe it as Eco-only updating.
 
-## Unreleased main: v1.1.16.9
+## Unreleased main: v1.1.20
 
 The newer source changes updating to a metadata-only notice and an exact Player page handoff in compatible Netra Ecosystem or on its website. Legacy updater jobs are inert in that source. These changes are not presented as shipped until its signed release is published and verified. This README change does not publish an APK.
 
