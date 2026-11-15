@@ -39,11 +39,11 @@ internal fun NavratriGreeting() {
             // Mark first open even if silent, active media or no installed offline voice. Never retry on each open.
             prefs.edit().putBoolean("oct11_seen", true).apply()
             val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            if (GreetingPolicy.maySpeak(audio.ringerMode != AudioManager.RINGER_MODE_NORMAL, audio.isMusicActive)) {
+            if (GreetingPolicy.maySpeak(audio.ringerMode != AudioManager.RINGER_MODE_NORMAL, MediaPlaybackGuard.isMediaActive(context))) {
                 engine = TextToSpeech(context) { status ->
                     val t = engine
                     if (!disposed && status == TextToSpeech.SUCCESS && t != null &&
-                        GreetingPolicy.maySpeak(audio.ringerMode != AudioManager.RINGER_MODE_NORMAL, audio.isMusicActive)) {
+                        GreetingPolicy.maySpeak(audio.ringerMode != AudioManager.RINGER_MODE_NORMAL, MediaPlaybackGuard.isMediaActive(context))) {
                         val voice = t.voices?.filter { !it.isNetworkConnectionRequired &&
                             !it.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) }
                             ?.sortedBy { when (it.locale.language) { "hi" -> 0; "en" -> 1; else -> 2 } }
