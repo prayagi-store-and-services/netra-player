@@ -1,3 +1,8 @@
+## 1.1.22 - Announcements wait for media
+
+- The Jay Mata Di greeting is skipped while any media is playing, instead of interrupting it.
+- No new permission, dependency, endpoint or stored data.
+
 ## 1.1.21 - Audio formats and video audio mode
 
 - Optional usage counting is off until you enable it after reading the data and destination. Older default-on settings do not count as explicit consent.

@@ -1,3 +1,7 @@
+## v1.1.22 - skip spoken announcements while media plays
+
+Behaviour change, not a vulnerability fix, and no vulnerability fix is claimed. The Jay Mata Di greeting is now skipped whenever other media (video or audio) is playing. It no longer pauses, ducks or takes audio focus. The check runs before starting and again right before speaking; if it cannot decide, the announcement is skipped. Known limits: silent video, cast/remote playback and manufacturer-hidden players may not be detected;. No new permission, library, endpoint or data. Automated build/test evidence only; not verified on a physical phone.
+
 ## v1.1.21 - media selection and persisted audio-only mode
 
 Playback and privacy-consent improvements, not a claimed vulnerability patch. Audio/video MIME selection is expanded; missing or generic MIME uses a bounded extension list, not unrestricted file admission. Media3/device decoders still decide playback support. No new permissions, libraries or network endpoints. Audio-only preference keys contain the selected media URI in app-private preferences; backup remains disabled and these preferences are not uploaded. The service and activity respect that choice across queue and lifecycle changes. Stadium Sound remains an Android Virtualizer effect with honest device limitations. The release validation checks the signed APK package and version against source, plus the existing fixed certificate continuity check.
