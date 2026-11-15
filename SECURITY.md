@@ -1,6 +1,6 @@
 ## v1.1.22 - skip spoken announcements while media plays
 
-Behaviour change, not a vulnerability fix, and no vulnerability fix is claimed. The Jay Mata Di greeting is now skipped whenever other media (video or audio) is playing. It no longer pauses, ducks or takes audio focus. The check runs before starting and again right before speaking; if it cannot decide, the announcement is skipped. Known limits: silent video, cast/remote playback and manufacturer-hidden players may not be detected; on Android 13 and older only the music-stream check is available. No new permission, library, endpoint or data. Automated build/test evidence only; not verified on a physical phone.
+Behaviour change, not a vulnerability fix, and no vulnerability fix is claimed. The Jay Mata Di greeting is now skipped whenever other media (video or audio) is playing. It no longer pauses, ducks or takes audio focus. The check runs before starting and again right before speaking; if it cannot decide, the announcement is skipped. Known limits: silent video, cast/remote playback and manufacturer-hidden players may not be detected;. No new permission, library, endpoint or data. Automated build/test evidence only; not verified on a physical phone.
 
 ## v1.1.21 - media selection and persisted audio-only mode
 
