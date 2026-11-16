@@ -296,8 +296,9 @@ private fun PlaySection() {
     val subtitlePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { subtitle ->
         if (subtitle != null) {
             val name = displayName(context, subtitle)
-            if (!name.endsWith(".srt", ignoreCase = true)) {
-                error = "Choose an .srt subtitle file."
+            val subtitleMime = SubtitleSupport.mimeFor(name, context.contentResolver.getType(subtitle))
+            if (subtitleMime == null) {
+                error = "Choose a subtitle file: " + SubtitleSupport.ACCEPTED_LABEL + "."
             } else if (player.currentMediaItem == null) {
                 error = "Open a video first."
             } else {
@@ -310,7 +311,7 @@ private fun PlaySection() {
                     val position = player.currentPosition
                     val playing = player.playWhenReady
                     val config = MediaItem.SubtitleConfiguration.Builder(subtitle)
-                        .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_SUBRIP)
+                        .setMimeType(subtitleMime)
                         .setLabel(name).setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT).build()
                     val index = player.currentMediaItemIndex
                     val updated = item.buildUpon().setUri(item.mediaId)
