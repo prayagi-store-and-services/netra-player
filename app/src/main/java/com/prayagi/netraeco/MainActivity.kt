@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -216,14 +218,25 @@ private fun displayName(context: Context, uri: Uri): String = try {
     "Selected file"
 }
 
-/** Player scope: video files and MP3 only. Some phones report MP3 as audio/mp3 or no type at all, so the file name is checked too. */
-internal fun isVideoOrMp3(mime: String?, name: String?): Boolean {
+/** Player scope: common audio and video. MIME type leads; the file extension is a fallback
+ *  only when the MIME is missing or generic (some phones report no type). Actual playback
+ *  still depends on Media3 extractors and device codecs - unsupported files fail with the
+ *  existing playback error path, never silently. */
+internal fun isPlayableMedia(mime: String?, name: String?): Boolean {
     val m = mime?.lowercase().orEmpty()
-    if (m.startsWith("video/")) return true
-    if (m == "audio/mpeg" || m == "audio/mp3") return true
-    return (m.isEmpty() || m == "application/octet-stream") && name?.lowercase()?.endsWith(".mp3") == true
+    if (m.startsWith("video/") || m.startsWith("audio/")) return true
+    if (m.isNotEmpty() && m != "application/octet-stream") return false
+    val ext = name?.lowercase()?.substringAfterLast('.', "")?.takeIf { it.isNotEmpty() } ?: return false
+    return ext in MEDIA_FALLBACK_EXTENSIONS
 }
 
+/** Extensions trusted only as a fallback when MIME is missing or application/octet-stream. */
+private val MEDIA_FALLBACK_EXTENSIONS = setOf(
+    "mp3", "m4a", "aac", "wav", "flac", "ogg", "oga", "opus",
+    "mp4", "m4v", "mkv", "avi", "webm", "3gp", "ts",
+)
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlaySection() {
     val context = LocalContext.current
@@ -250,6 +263,12 @@ private fun PlaySection() {
     var error by remember { mutableStateOf<String?>(null) }
     var currentUri by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }) }
     var hasVideo by remember { mutableStateOf(player.currentTracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)) }
+    var videoAvailable by remember { mutableStateOf(AudioOnlyMode.hasVideoTrack(player.currentTracks)) }
+    var audioOnly by remember { mutableStateOf(player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }?.let { AudioOnlyMode.isAudioOnly(context, it) } ?: false) }
+    fun setVideoTrackEnabled(enabled: Boolean) {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, !enabled).build()
+    }
     val inPip = (context as? MainActivity)?.inPipMode?.value == true
     val pipAvailable = remember { PipSupport.deviceSupports(context) }
     var tracks by remember { mutableStateOf(player.currentTracks) }
@@ -266,7 +285,7 @@ private fun PlaySection() {
                 context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 folderFiles = withContext(Dispatchers.IO) { listFolderMedia(context, tree) }
                 folderPage = 0
-                error = if (folderFiles.isEmpty()) "No supported video or MP3 files in this folder." else null
+                error = if (folderFiles.isEmpty()) "No supported audio or video files in this folder." else null
             } catch (e: Exception) {
                 folderFiles = emptyList()
                 error = if (e.message == "Folder too large") "This folder has over 1000 media files. Choose a smaller folder." else "Folder unavailable. Choose it again."
@@ -327,8 +346,8 @@ private fun PlaySection() {
     androidx.activity.compose.BackHandler(enabled = full) { setFull(false) }
     var last by remember { mutableStateOf(LastPlayed.load(context)) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null && !isVideoOrMp3(context.contentResolver.getType(uri), displayName(context, uri))) {
-            error = "Netra Player plays video and MP3 files only. Please pick a video or an MP3."
+        if (uri != null && !isPlayableMedia(context.contentResolver.getType(uri), displayName(context, uri))) {
+            error = "Choose an audio or video file. Playback depends on the file format and this device."
         } else if (uri != null) {
             error = null
             title = displayName(context, uri)
@@ -344,13 +363,14 @@ private fun PlaySection() {
     DisposableEffect(player, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
-                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, false).build()
+                AudioOnlyMode.appForeground = true
+                // Foreground: video comes back ONLY when the user did not choose audio-only for this item.
+                setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(audioOnly, appForeground = true))
             }
             if (event == Lifecycle.Event.ON_STOP) {
+                AudioOnlyMode.appForeground = false
                 // Screen off/background: detach video selection; audio continues in the service.
-                player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, true).build()
+                setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(audioOnly, appForeground = false))
                 val u = currentUri
                 if (u != null) {
                     LastPlayed.save(context, u, title ?: "Selected file", player.currentPosition)
@@ -363,17 +383,19 @@ private fun PlaySection() {
                 title = item?.mediaMetadata?.title?.toString()
                 currentUri = item?.mediaId?.takeIf { it.isNotEmpty() }
                 error = null
+                audioOnly = currentUri?.let { AudioOnlyMode.isAudioOnly(context, it) } ?: false
+                setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(audioOnly,
+                    appForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)))
             }
             override fun onPlayerError(e: androidx.media3.common.PlaybackException) { error = playbackErrorMessage(e.errorCode) }
             override fun onTracksChanged(updated: androidx.media3.common.Tracks) {
                 tracks = updated
                 hasVideo = updated.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_VIDEO)
+                videoAvailable = AudioOnlyMode.hasVideoTrack(updated)
             }
         }
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_VIDEO, false).build()
-        }
+        AudioOnlyMode.appForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(audioOnly, AudioOnlyMode.appForeground))
         lifecycle.addObserver(observer)
         player.addListener(listener)
         onDispose {
@@ -388,10 +410,18 @@ private fun PlaySection() {
         }
     }
 
+    LaunchedEffect(player) {
+        val u = player.currentMediaItem?.mediaId?.takeIf { it.isNotEmpty() }
+        if (u != null) {
+            audioOnly = AudioOnlyMode.isAudioOnly(context, u)
+            setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(audioOnly,
+                appForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)))
+        }
+    }
     if (choosingTracks && !inPip) TrackChoiceDialog(player, tracks) { choosingTracks = false }
     val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
     val openPicker = {
-        try { picker.launch(arrayOf("video/*", "audio/mpeg")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
+        try { picker.launch(arrayOf("video/*", "audio/*")) } catch (e: android.content.ActivityNotFoundException) { error = NO_PICKER_MESSAGE }
     }
     var controllerVisible by remember { mutableStateOf(true) }
     var gestureText by remember { mutableStateOf<String?>(null) }
@@ -510,7 +540,9 @@ private fun PlaySection() {
                 Text(it, color = Color.White, fontSize = 16.sp, modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 12.dp, vertical = 6.dp))
             }
             if (!inPip && (!full || controllerVisible)) {
-                Row(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(Modifier.align(Alignment.TopEnd).fillMaxWidth().padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (PipSupport.shouldOffer(hasVideo, pipAvailable)) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = {
                         val act = context as? MainActivity
                         if (act == null || !PipSupport.enter(act, player.videoSize.width, player.videoSize.height)) {
@@ -520,6 +552,13 @@ private fun PlaySection() {
                     if (hasVideo) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { videoFit = videoFit.next() }) {
                         Text("Size: ${videoFit.label}", color = Color.White)
                     }
+                    if (videoAvailable) OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = {
+                        val next = !audioOnly
+                        audioOnly = next
+                        currentUri?.let { AudioOnlyMode.setAudioOnly(context, it, next) }
+                        setVideoTrackEnabled(!AudioOnlyMode.disableVideoTrack(next,
+                            appForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)))
+                    }) { Text(if (audioOnly) "Play Video" else "Listen as Audio", color = Color.White) }
                     OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.8f)), onClick = { choosingTracks = true }) { Text("Tracks", color = Color.White) }
                 }
             }
@@ -573,9 +612,9 @@ private fun PlaySection() {
     } else if (currentUri == null) {
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = playerCardColors()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Play a video or MP3", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Plays on this phone only. Nothing is uploaded. Video and MP3 files only.", style = MaterialTheme.typography.bodySmall)
-                Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open video or MP3 file") }
+                Text("Play audio or video", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Selected media plays on this phone and is never uploaded. Format support depends on this device.", style = MaterialTheme.typography.bodySmall)
+                Button(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = { openPicker() }) { Text("Open audio or video file") }
                 val resume = last
                 if (resume != null) {
                     OutlinedButton(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), onClick = {
@@ -641,8 +680,8 @@ private fun AboutSection() {
             Text("v$version | Netra Ecosystem. Video and music player by Prayagi Team. Your media stays on this device.", style = MaterialTheme.typography.bodyMedium)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
-                    Text("Share anonymous usage count", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Once a day the app adds 1 to a public counter so the Netra site can show roughly how many people use it. No ID, no location, no files.", style = MaterialTheme.typography.bodySmall)
+                    Text("Share anonymous usage count (optional)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Off unless you enable it. Sends this app's daily/monthly +1 counter to Google Firestore (Netra project). No media, file names, device ID, account or location in the request body. The service receives the network request.", style = MaterialTheme.typography.bodySmall)
                 }
                 Switch(checked = usage, onCheckedChange = { usage = it; UsagePing.setEnabled(context, it) })
             }

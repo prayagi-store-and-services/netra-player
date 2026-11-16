@@ -4,7 +4,7 @@ Android local video and MP3 player by Prayagi Team, part of [Netra Ecosystem](ht
 
 ## Public release: v1.1.18
 
-The current published release is [v1.1.18](https://github.com/prayagi-store-and-services/netra-player/releases/tag/v1.1.18). This description was last verified in detail against [v1.1.16.8](https://github.com/prayagi-store-and-services/netra-player/releases/tag/v1.1.16.8) (versionCode 30); line-by-line re-verification against v1.1.18 is pending.
+The last published release before this candidate is [v1.1.18](https://github.com/prayagi-store-and-services/netra-player/releases/tag/v1.1.18). This description was last verified in detail against [v1.1.16.8](https://github.com/prayagi-store-and-services/netra-player/releases/tag/v1.1.16.8) (versionCode 30); line-by-line re-verification against v1.1.18 is pending.
 
 - Open a video or MP3 file through Android's file picker, or browse a selected folder with previous/next queue controls.
 - Continue the last selected file from its saved position. Playback runs in a Media3 service, with Android media controls and background audio subject to Android limits.
@@ -12,7 +12,7 @@ The current published release is [v1.1.18](https://github.com/prayagi-store-and-
 - Local playback works offline. No login is required. Updates and optional crash reports or usage counts have separate network paths; local playback does not mean the entire app has no network activity.
 - v1.1.16.8 contained the older update check and verified APK background-download path; whether v1.1.18 still does is not re-verified here. Android confirmation is required to install. Do not describe it as Eco-only updating.
 
-## Unreleased main: v1.1.16.9
+## Release candidate: v1.1.21 (versionCode 37)
 
 The newer source changes updating to a metadata-only notice and an exact Player page handoff in compatible Netra Ecosystem or on its website. Legacy updater jobs are inert in that source. These changes are not presented as shipped until its signed release is published and verified. This README change does not publish an APK.
 
@@ -22,6 +22,9 @@ Whenever a feature or architecture changes, update the app/store/site/Eco descri
 
 ## Build
 
-Kotlin, Jetpack Compose and AndroidX Media3 ExoPlayer. `./gradlew testDebugUnitTest assembleRelease`.
+Kotlin, Jetpack Compose and AndroidX Media3 ExoPlayer. CI installs Gradle 9.3.1 with JDK 21 and an Android SDK, then runs `gradle :app:testDebugUnitTest :app:assembleRelease` with the release signing environment. No Gradle wrapper is committed.
 
 Use reviewable PRs and green checks at the exact reviewed head, not direct main pushes. Audit the signed APK's identity, certificate and contents before publication. See SECURITY.md and WHATS_NEW.md for the release and data boundaries.
+
+## 1.1.21 candidate scope
+Common audio/video discovery, persisted Listen as Audio / Play Video mode, Stadium Sound audio-session rebind and explicit informed usage-counter opt-in. Source support is not universal codec support. Audio-mode preference URIs stay in app-private preferences; backup is off. No new permissions, dependency or endpoint. Final combined-head CI and signed-candidate inspection are required before publication. Physical-device service/process-death, TV, headset and battery testing are not claimed.
